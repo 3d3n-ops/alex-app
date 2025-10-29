@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Menu, Send, MessageSquare, Settings, X } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { chatDb } from "@/lib/chat-db"
 
 interface DashboardClientProps {
   firstName: string
@@ -13,6 +15,13 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [message, setMessage] = useState("")
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [mode, setMode] = useState<'learn' | 'explore'>("learn")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
 
   // Update time every second
   useEffect(() => {
@@ -37,11 +46,37 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
     return `${displayHours}:${minutes} ${ampm}`
   }
 
-  const handleSend = () => {
-    if (message.trim()) {
-      console.log("[v0] Sending message:", message)
-      // Handle message sending logic here
+  const handleSend = async () => {
+    if (!message.trim()) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch('/api/thread', { method: 'POST' })
+      const { id, sig } = await res.json()
+      await chatDb.messages.add({ threadId: id, role: 'user', content: message.trim(), createdAt: Date.now() })
+
+      // Persist attachments in Dexie
+      const toBase64 = (f: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '')
+        reader.onerror = reject
+        reader.readAsDataURL(f)
+      })
+      for (const f of selectedFiles) {
+        const contentBase64 = await toBase64(f)
+        await chatDb.attachments.add({ threadId: id, type: 'file', name: f.name, mimeType: f.type || 'application/octet-stream', contentBase64, createdAt: Date.now() })
+      }
+      for (const f of selectedImages) {
+        const contentBase64 = await toBase64(f)
+        await chatDb.attachments.add({ threadId: id, type: 'image', name: f.name, mimeType: f.type || 'image/*', contentBase64, createdAt: Date.now() })
+      }
+
       setMessage("")
+      setSelectedFiles([])
+      setSelectedImages([])
+      const agent = mode === 'learn' ? 'alexTutor' : 'alexExplore'
+      router.push(`/chat/${id}?sig=${encodeURIComponent(sig)}&mode=${agent}`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -114,27 +149,58 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
 
         {/* Center content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
-          <div className="w-full max-w-2xl">
+          <div className="w-full max-w-3xl">
             <h1 className="font-mono font-bold text-2xl md:text-3xl text-white text-center mb-2">Hi, {firstName}</h1>
             <p className="font-mono text-white text-center mb-8">What will you learn today?</p>
 
-            {/* Chat input */}
+            {/* Chat input with mode toggle and attachments */}
             <div className="relative">
               <Input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Ask me anything..."
-                className="w-full bg-[#2A2622] border-none text-white placeholder:text-white/40 font-mono px-6 py-6 pr-14 rounded-lg"
+                className="w-full bg-[#2A2622] border-none text-white placeholder:text-white/40 font-mono pl-28 pr-36 py-12 rounded-xl text-base md:text-lg min-h-[80px]"
               />
+              {/* Left actions: attachments first, then mode toggle */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-white/80 hover:text-white bg-white/10 hover:bg-white/15 transition-colors rounded-full w-8 h-8 inline-flex items-center justify-center"
+                  title="Attach file"
+                >
+                  +
+                </button>
+                <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])} />
+
+                <button
+                  type="button"
+                  onClick={() => setMode(prev => prev === 'learn' ? 'explore' : 'learn')}
+                  className="inline-flex items-center gap-2 text-xs text-white/80 hover:text-white"
+                  title={mode === 'learn' ? 'Switch to Explore Mode' : 'Switch to Learn Mode'}
+                >
+                  <span className={`inline-block w-10 h-5 rounded-full border border-white/20 relative transition-colors ${mode === 'learn' ? 'bg-white/20' : 'bg-[#C9B59A]'}`}>
+                    <span className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#161210] transition-all ${mode === 'learn' ? 'left-0.5' : 'left-5'}`}></span>
+                  </span>
+                  <span className="sr-only">{mode === 'learn' ? 'Learn Mode' : 'Explore Mode'}</span>
+                </button>
+              </div>
               <Button
                 onClick={handleSend}
                 size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#C9B59A] hover:bg-[#B8A589] text-[#161210]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#C9B59A] hover:bg-[#B8A589] text-[#161210] h-12 w-12"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               </Button>
             </div>
+            {/* Small attachments summary */}
+            {(selectedFiles.length > 0 || selectedImages.length > 0) && (
+              <div className="mt-2 flex items-center gap-3 text-xs text-white/70 font-mono">
+                {selectedFiles.length > 0 && <span>{selectedFiles.length} file(s) attached</span>}
+                {selectedImages.length > 0 && <span>{selectedImages.length} image(s) attached</span>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -144,6 +210,18 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
           <div>{formatTime(currentTime)}</div>
         </div>
       </div>
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-[#1E1A18] text-white px-6 py-4 rounded-md border border-white/10 font-mono text-sm flex items-center gap-3">
+            <span className="inline-flex gap-1">
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </span>
+            Preparing your chat…
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,14 +5,15 @@ import { z } from 'zod'
 
 const ROOT = process.cwd()
 
-export const globFileSchema = z.object({
-	pattern: z.string().optional().describe('Glob pattern relative to repo root'),
-	ignore: z.array(z.string()).optional().describe('Glob patterns to ignore'),
-	limit: z.number().int().min(1).max(5000).optional().describe('Max results')
-})
+export const globFileSchema = z
+	.object({
+		pattern: z.string().min(0).describe('Glob pattern (e.g. **/*.ts). Use **/* to list all files'),
+		ignore: z.array(z.string()).optional().describe('Glob patterns to ignore'),
+		limit: z.number().int().min(1).max(5000).optional().describe('Max results')
+	})
 
 export async function globFile({ pattern, ignore, limit }: z.infer<typeof globFileSchema>) {
-	const pat = pattern ?? '**/*'
+	const pat = pattern || '**/*'
 	const results = await fg(pat, {
 		cwd: ROOT,
 		ignore: [

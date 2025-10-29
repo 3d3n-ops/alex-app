@@ -18,7 +18,7 @@ const CodeEditor = dynamic(() => import('@/components/code-editor'), {
 
 export default function ChatPage() {
   const editorRef = useRef<CodeEditorHandle>(null)
-  const { messages, isLoading, sendMessage, mode, setMode } = useChatThread(undefined, 'alexTutor')
+  const { messages, isLoading, sendMessage } = useChatThread(undefined, 'alexTutor')
 
   return (
     <div className="h-screen w-screen relative">
@@ -35,8 +35,6 @@ export default function ChatPage() {
         messages={messages.map(m => ({ id: String(m.id), role: m.role, content: m.content, timestamp: new Date(m.createdAt) }))}
         onSendMessage={sendMessage}
         isLoading={isLoading}
-        defaultMode={mode === 'alexTutor' ? 'learn' : 'explore'}
-        onToggleMode={() => setMode(mode === 'alexTutor' ? 'alexExplore' : 'alexTutor')}
       />
     </div>
   )

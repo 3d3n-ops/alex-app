@@ -19,8 +19,6 @@ interface ChatFieldProps {
   onSendMessage?: (message: string) => void
   messages?: ChatMessage[]
   isLoading?: boolean
-  defaultMode?: 'learn' | 'explore'
-  onToggleMode?: () => void
 }
 
 export default function ChatField({
@@ -28,16 +26,11 @@ export default function ChatField({
   onSendMessage,
   messages = [],
   isLoading = false,
-  defaultMode = 'learn',
-  onToggleMode,
 }: ChatFieldProps) {
   const [inputValue, setInputValue] = useState('')
-  const [mode, setMode] = useState<'learn' | 'explore'>(defaultMode)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
 
   // Draggable position + visibility
   const [isOpen, setIsOpen] = useState(true)
@@ -156,34 +149,6 @@ export default function ChatField({
       >
         <div className="w-10 h-1 rounded-full bg-foreground/20" />
       </div>
-      {/* Mode Toggle + Actions */}
-      <div className="px-3 pb-1 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            const next = mode === 'learn' ? 'explore' : 'learn'
-            setMode(next)
-            onToggleMode?.()
-          }}
-          className="inline-flex items-center gap-2 text-xs text-foreground/80 hover:text-foreground"
-          title={mode === 'learn' ? 'Switch to Explore Mode' : 'Switch to Learn Mode'}
-        >
-          <span className={cn('inline-block w-8 h-4 rounded-full border border-border/50 relative transition-colors', mode === 'learn' ? 'bg-foreground/20' : 'bg-primary/60')}>
-            <span className={cn('absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-background transition-all', mode === 'learn' ? 'left-0.5' : 'left-4.5')}></span>
-          </span>
-          <span>{mode === 'learn' ? 'Learn Mode' : 'Explore Mode'}</span>
-        </button>
-
-        <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="text-foreground/70 hover:text-foreground" title="Attach file">+
-          </button>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={() => { /* handle file selection */ }} />
-          <button type="button" onClick={() => imageInputRef.current?.click()} className="text-foreground/70 hover:text-foreground" title="Attach image">🖼
-          </button>
-          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={() => { /* handle image selection */ }} />
-        </div>
-      </div>
-
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden bg-muted/20">
         <ScrollArea className="h-full">

@@ -10,7 +10,7 @@ const CodeEditor = dynamic(() => import('@/components/code-editor'), { ssr: fals
 export default function ThreadPage() {
   const params = useParams<{ threadId: string }>()
   const { threadId } = params
-  const { messages, isLoading, sendMessage, mode, setMode } = useChatThread(threadId, 'alexTutor')
+  const { messages, isLoading, sendMessage } = useChatThread(threadId, 'alexTutor')
 
   return (
     <div className="h-screen w-screen relative">
@@ -19,8 +19,6 @@ export default function ThreadPage() {
         messages={messages.map(m => ({ id: String(m.id), role: m.role, content: m.content, timestamp: new Date(m.createdAt) }))}
         onSendMessage={sendMessage}
         isLoading={isLoading}
-        defaultMode={mode === 'alexTutor' ? 'learn' : 'explore'}
-        onToggleMode={() => setMode(mode === 'alexTutor' ? 'alexExplore' : 'alexTutor')}
       />
     </div>
   )
