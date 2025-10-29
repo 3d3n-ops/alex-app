@@ -18,14 +18,7 @@ export default function ChatPage() {
   const editorRef = useRef<CodeEditorHandle>(null)
 
   return (
-    <div className="h-screen w-screen flex flex-col">
-      <div className="border-b border-border p-4">
-        <h1 className="text-2xl font-bold">Code Editor</h1>
-        <p className="text-sm text-muted-foreground">
-          Write and run code in multiple languages. AI can interact with the editor.
-        </p>
-      </div>
-      <div className="flex-1 overflow-hidden p-4">
+    <div className="h-screen w-screen">
         <CodeEditor
           ref={editorRef}
           className="h-full"
@@ -35,7 +28,6 @@ export default function ChatPage() {
             console.log('Code changed:', code.length, 'characters')
           }}
         />
-      </div>
     </div>
   )
 }

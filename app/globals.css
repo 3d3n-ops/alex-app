@@ -123,3 +123,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* CodeMirror scrollbar styling */
+.cm-scroller {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.cm-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0 0);
+  border-radius: 4px;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.4 0 0);
+}
