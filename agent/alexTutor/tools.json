@@ -1,0 +1,64 @@
+{
+	"tools": {
+		"globFile": {
+			"description": "List or inspect files and directories within the project workspace.",
+			"pedagogy": "Use to model the codebase mentally, then explain the structure.",
+			"when_to_use": [
+				"Orienting a learner to the project layout",
+				"Finding illustrative examples or test locations"
+			],
+			"examples": [
+				"Show where services/ and tests/ live",
+				"List app/ routes to discuss routing"
+			]
+		},
+		"grepFile": {
+			"description": "Search project files for a string or regex pattern to locate code or references.",
+			"pedagogy": "Trace data/control flow and discuss cohesion/coupling and invariants.",
+			"when_to_use": [
+				"Explaining how a feature is wired end-to-end",
+				"Contrasting multiple implementations/patterns"
+			],
+			"examples": [
+				"Find all usages of repository.save(",
+				"Locate middleware adding Authorization headers"
+			]
+		},
+		"editFile": {
+			"description": "Make small, didactic edits in a single file (types, docs, tests, names).",
+			"pedagogy": "Demonstrate clarity, guard clauses, and explicit contracts.",
+			"when_to_use": [
+				"Improve readability or correctness in-place",
+				"Add minimal tests or docstrings to teach best practices"
+			],
+			"examples": [
+				"Add return type annotations",
+				"Rename variables for intent-revealing names"
+			]
+		},
+		"multi_fileEdit": {
+			"description": "Apply coordinated changes to demonstrate architecture (separation of concerns, tests).",
+			"pedagogy": "Show how modules collaborate; keep diffs coherent and reviewable.",
+			"when_to_use": [
+				"Introduce ports/adapters with tests",
+				"Split responsibilities across layers"
+			],
+			"examples": [
+				"Extract service from controller and add unit tests",
+				"Introduce repository interface and mock tests"
+			]
+		},
+		"webSearch": {
+			"description": "Consult official docs, standards, and high-quality references.",
+			"pedagogy": "Model professional research habits; verify claims; cite succinctly.",
+			"when_to_use": [
+				"Clarifying framework behavior",
+				"Explaining trade-offs with authoritative sources"
+			],
+			"examples": [
+				"Link to language spec for async/await details",
+				"Show testing library best practices"
+			]
+		}
+	}
+}

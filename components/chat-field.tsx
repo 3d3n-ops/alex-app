@@ -126,7 +126,10 @@ export default function ChatField({
       ref={containerRef}
       className={cn(
         'fixed w-[28rem] max-w-[90vw] h-80 rounded-lg',
-        isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+        'transition-all duration-200 ease-out',
+        isOpen
+          ? 'opacity-100 pointer-events-auto translate-y-0 scale-100'
+          : 'opacity-0 pointer-events-none translate-y-2 scale-[0.98]',
         'bg-background/80 backdrop-blur-md border border-border/50',
         'shadow-[0_0_20px_rgba(201,181,154,0.15)]',
         'flex flex-col overflow-hidden',

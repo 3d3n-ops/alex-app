@@ -1,0 +1,85 @@
+{
+	"tools": {
+		"globFile": {
+			"description": "List or inspect files and directories within the project workspace.",
+			"when_to_use": [
+				"You need to understand project structure quickly",
+				"You want to confirm a file was created or moved",
+				"You’re looking for candidate locations for a feature"
+			],
+			"examples": [
+				"List src/pages and src/components",
+				"Show server/ and app/ directories if present"
+			]
+		},
+		"grepFile": {
+			"description": "Search project files for a string or regex pattern to locate code or references.",
+			"when_to_use": [
+				"You know a symbol, function, or string to find",
+				"You need to trace a call site or definition",
+				"You want to find all usages before an edit"
+			],
+			"parameters": {
+				"pattern": "Exact string or regex (escape special chars as needed)",
+				"path": "Optional path to narrow the search",
+				"glob": "Optional glob to filter files",
+				"multiline": "Set true only for cross-line patterns"
+			},
+			"examples": [
+				"Find where router.push( is used",
+				"Search for getUserProfile( definition",
+				"Locate 'Authorization' header usage"
+			],
+			"cautions": [
+				"Prefer precise patterns to avoid noisy matches",
+				"Use path/glob to reduce search scope for speed"
+			]
+		},
+		"editFile": {
+			"description": "Apply minimal, targeted edits in a single file with clean diffs.",
+			"when_to_use": [
+				"Small, surgical changes (imports, signatures, constants)",
+				"Fixes that don’t require touching multiple files"
+			],
+			"best_practices": [
+				"Keep changes cohesive and lint-safe",
+				"Summarize what changed and why after editing"
+			],
+			"examples": [
+				"Add an export to index.ts",
+				"Rename a prop and update its type"
+			]
+		},
+		"multi_fileEdit": {
+			"description": "Apply coordinated edits across multiple files for scaffolds or refactors.",
+			"when_to_use": [
+				"A feature spans routes, components, and tests",
+				"Consistent renames or API updates across files"
+			],
+			"best_practices": [
+				"Group related changes into a single operation",
+				"Prefer incremental steps with clear summaries"
+			],
+			"examples": [
+				"Add Stripe: server route, client button, env var",
+				"Migrate fetch wrapper and update all callers"
+			]
+		},
+		"webSearch": {
+			"description": "Search for technical references, official docs, examples, or recent changes.",
+			"when_to_use": [
+				"Library/framework usage is unclear or recently changed",
+				"You need authoritative docs or minimal examples",
+				"Unfamiliar errors or edge-case behavior"
+			],
+			"examples": [
+				"Next.js app router middleware auth patterns",
+				"Stripe minimal Checkout server+client flow"
+			],
+			"cautions": [
+				"Prefer primary sources and stable APIs",
+				"Summarize results; avoid link-dumps"
+			]
+		}
+	}
+}
