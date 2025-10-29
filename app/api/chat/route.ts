@@ -19,11 +19,11 @@ export async function POST(req: Request) {
 		model,
 		system: systemPrompt,
 		messages,
-		maxTokens: 2000,
+		maxOutputTokens: 2000,
 		temperature: 0.3,
 		tools
 	})
 
-	return result.toDataStreamResponse()
+	return result.toTextStreamResponse()
 }
 
