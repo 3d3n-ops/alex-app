@@ -33,7 +33,21 @@ export default function ChatPage() {
       />
       <ChatField
         messages={messages.map(m => ({ id: String(m.id), role: m.role, content: m.content, timestamp: new Date(m.createdAt) }))}
-        onSendMessage={sendMessage}
+        onSendMessage={async (msg) => {
+          const result = await sendMessage(msg)
+          const intents = (result as any)?.toolIntents || []
+          const editor = editorRef.current
+          for (const intent of intents) {
+            const name = intent?.name
+            const args = intent?.args || {}
+            if (!editor) continue
+            if (name === 'editor.setCode') editor.setCode(String(args.code || ''), args.language)
+            else if (name === 'editor.insertCode') editor.insertCode(String(args.code || ''), args.position)
+            else if (name === 'editor.createFile') await editor.createFile(String(args.name || 'new.txt'), String(args.language || 'plaintext'), String(args.content || ''))
+            else if (name === 'editor.runCode') await editor.runCode()
+            else if (name === 'terminal.write') { editor.openTerminal(); editor.writeToTerminal(String(args.text || '')) }
+          }
+        }}
         isLoading={isLoading}
       />
     </div>

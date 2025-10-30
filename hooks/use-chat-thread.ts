@@ -56,34 +56,24 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     controllerRef.current?.abort()
     controllerRef.current = new AbortController()
     try {
+      // Phase 2: non-stream request that returns assistant content + tool intents
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent: mode,
-          provider: undefined,
-          messages: messages.concat([{ threadId: tid, role: 'user', content: text, createdAt: Date.now() }]).map(m => ({ role: m.role, content: m.content }))
+          clientIntents: true,
+          messages: messages
+            .concat([{ threadId: tid, role: 'user', content: text, createdAt: Date.now() }])
+            .map(m => ({ role: m.role, content: m.content }))
         }),
         signal: controllerRef.current.signal
       })
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let assistantContent = ''
-      while (reader) {
-        const { done, value } = await reader.read()
-        if (done) break
-        assistantContent += decoder.decode(value, { stream: true })
-        // optimistic: show streaming
-        setMessages((prev) => {
-          const last = prev[prev.length - 1]
-          if (last && last.role === 'assistant' && last.threadId === tid && last.createdAt === -1) {
-            return prev.slice(0, -1).concat([{ ...last, content: assistantContent }])
-          }
-          return prev.concat([{ threadId: tid, role: 'assistant', content: assistantContent, createdAt: -1 }])
-        })
-      }
-      // finalize save
-      await append('assistant', assistantContent, tid)
+      if (!res.ok) throw new Error('Chat request failed')
+      const data = await res.json()
+      const assistantContent: string = data?.content || ''
+      const savedId = await append('assistant', assistantContent, tid)
+      return { toolIntents: Array.isArray(data?.toolIntents) ? data.toolIntents : [], assistantMessageId: savedId }
     } finally {
       setIsLoading(false)
     }

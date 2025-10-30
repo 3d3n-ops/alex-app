@@ -18,6 +18,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { db, type FileItem } from '@/lib/db'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { File, FileCode, Folder, FolderOpen, Plus, Trash2, Play, Save, X, Terminal as TerminalIcon, Globe } from 'lucide-react'
@@ -41,6 +42,8 @@ export interface CodeEditorHandle {
   insertCode: (code: string, position?: { line: number; column: number }) => void
   createFile: (name: string, language: string, content?: string) => Promise<void>
   runCode: () => Promise<void>
+  openTerminal: () => void
+  writeToTerminal: (text: string) => void
 }
 
 interface CodeEditorProps {
@@ -60,6 +63,15 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
     const [terminalOutput, setTerminalOutput] = useState<string>('')
     const [showTerminal, setShowTerminal] = useState(false)
     const [showBrowser, setShowBrowser] = useState(false)
+    const [showNewDialog, setShowNewDialog] = useState(false)
+    const [newDialogType, setNewDialogType] = useState<'file' | 'folder'>('file')
+    const [newDialogName, setNewDialogName] = useState('')
+    const [ctxMenu, setCtxMenu] = useState<{ visible: boolean; x: number; y: number; targetId?: number }>(
+      { visible: false, x: 0, y: 0 }
+    )
+    const [showRenameDialog, setShowRenameDialog] = useState(false)
+    const [renameName, setRenameName] = useState('')
+    const [renameTarget, setRenameTarget] = useState<FileItem | null>(null)
     const terminalRef = useRef<HTMLDivElement>(null)
     const terminalInstanceRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
@@ -242,6 +254,22 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       runCode: async () => {
         await executeCode()
       },
+      openTerminal: () => {
+        setShowTerminal(true)
+        setTimeout(() => {
+          fitAddonRef.current?.fit()
+        }, 50)
+      },
+      writeToTerminal: (text: string) => {
+        if (!showTerminal) {
+          setShowTerminal(true)
+          setTimeout(() => {
+            terminalInstanceRef.current?.writeln(text)
+          }, 80)
+        } else {
+          terminalInstanceRef.current?.writeln(text)
+        }
+      }
     }))
 
     // Execute code using Judge0 API
@@ -307,56 +335,78 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       }
     }
 
-    // File management functions
-    const createNewFile = async () => {
-      const name = prompt('Enter file name (e.g., main.py):')
-      if (!name) return
+    // File tree helpers
+    const getChildren = (parentId?: number | null) => {
+      return files
+        .filter((f) => (parentId ? f.parentId === parentId : !f.parentId))
+        .sort((a, b) => {
+          // Folders first, then order, then name
+          if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1
+          const ao = a.order ?? 0, bo = b.order ?? 0
+          if (ao !== bo) return ao - bo
+          return a.name.localeCompare(b.name)
+        })
+    }
 
-      const detectedLanguage = detectLanguageFromFileName(name)
+    const buildChildPath = (parentPath: string | undefined, name: string) => {
+      const base = parentPath && parentPath !== '/' ? parentPath : ''
+      return `${base}/${name}`
+    }
 
-      const newFile: FileItem = {
+    // File management functions (hierarchical)
+    const createInFolder = async (parent: FileItem | null, name: string, isFolder: boolean) => {
+      const detectedLanguage = isFolder ? '' : detectLanguageFromFileName(name)
+      const parentPath = parent?.path || '/'
+      const newItem: FileItem = {
         name,
-        content: '',
+        content: isFolder ? '' : '',
         language: detectedLanguage,
-        path: `/${name}`,
-        isFolder: false,
+        path: buildChildPath(parentPath, name),
+        parentId: parent?.id || undefined,
+        isFolder,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }
-      const id = await db.files.add(newFile)
-      const fileId = Number(id)
-      const updatedFiles = await db.files.toArray()
-      setFiles(updatedFiles)
-      setSelectedFileId(fileId)
-      setCode('')
-      setLanguage(detectedLanguage)
-    }
-
-    const createNewFolder = async () => {
-      const name = prompt('Enter folder name:')
-      if (!name) return
-
-      const newFolder: FileItem = {
-        name,
-        content: '',
-        language: '',
-        path: `/${name}`,
-        isFolder: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+      const id = await db.files.add(newItem)
+      const updated = await db.files.toArray()
+      setFiles(updated)
+      if (!isFolder) {
+        setSelectedFileId(Number(id))
+        setCode('')
+        setLanguage(detectedLanguage)
       }
-      await db.files.add(newFolder)
-      const updatedFiles = await db.files.toArray()
-      setFiles(updatedFiles)
     }
 
-    const deleteFile = async (fileId: number) => {
-      if (!confirm('Are you sure you want to delete this file?')) return
-      await db.files.delete(fileId)
-      const updatedFiles = await db.files.toArray()
-      setFiles(updatedFiles)
-      if (selectedFileId === fileId) {
-        const remainingFiles = updatedFiles.filter((f) => !f.isFolder)
+    const renameItem = async (item: FileItem, newName: string) => {
+      if (!item.id) return
+      const oldPath = item.path
+      const parentPath = item.parentId ? (files.find(f => f.id === item.parentId)?.path || '/') : '/'
+      const newPath = buildChildPath(parentPath, newName)
+      await db.files.update(item.id, { name: newName, path: newPath, updatedAt: Date.now() })
+      if (item.isFolder) {
+        // Update descendants paths
+        const descendants = files.filter(f => f.path.startsWith(oldPath + '/'))
+        for (const d of descendants) {
+          const suffix = d.path.slice(oldPath.length)
+          await db.files.update(d.id!, { path: newPath + suffix, updatedAt: Date.now() })
+        }
+      }
+      setFiles(await db.files.toArray())
+    }
+
+    const deleteRecursive = async (item: FileItem) => {
+      if (!item.id) return
+      if (item.isFolder) {
+        const descendants = files.filter(f => f.path.startsWith(item.path + '/'))
+        for (const d of descendants) {
+          await db.files.delete(d.id!)
+        }
+      }
+      await db.files.delete(item.id)
+      const updated = await db.files.toArray()
+      setFiles(updated)
+      if (selectedFileId === item.id) {
+        const remainingFiles = updated.filter((f) => !f.isFolder)
         if (remainingFiles.length > 0 && remainingFiles[0].id) {
           setSelectedFileId(remainingFiles[0].id)
         } else {
@@ -364,6 +414,29 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           setCode('')
         }
       }
+    }
+
+    const isDescendantPath = (parentPath: string, candidatePath: string) => {
+      return candidatePath === parentPath || candidatePath.startsWith(parentPath + '/')
+    }
+
+    const moveItem = async (item: FileItem, newParent: FileItem | null) => {
+      if (!item.id) return
+      // Prevent moving a folder into itself or its descendants
+      if (newParent && item.isFolder && isDescendantPath(item.path, newParent.path)) return
+      const newParentPath = newParent?.path || '/'
+      const newPath = buildChildPath(newParentPath, item.name)
+      await db.files.update(item.id, { parentId: newParent?.id, path: newPath, updatedAt: Date.now() })
+      if (item.isFolder) {
+        // update descendants
+        const oldPath = item.path
+        const descendants = files.filter(f => f.path.startsWith(oldPath + '/'))
+        for (const d of descendants) {
+          const suffix = d.path.slice(oldPath.length)
+          await db.files.update(d.id!, { path: newPath + suffix, updatedAt: Date.now() })
+        }
+      }
+      setFiles(await db.files.toArray())
     }
 
     const toggleFolder = (folderId: number) => {
@@ -376,9 +449,100 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       setExpandedFolders(newExpanded)
     }
 
-    // Filter files to show only root level files
-    const rootFiles = files.filter((f) => !f.parentId)
     const currentFile = files.find((f) => f.id === selectedFileId)
+
+    // Recursive tree node component within scope to access helpers
+    const TreeNode: React.FC<{ node: FileItem; depth: number }> = ({ node, depth }) => {
+      const paddingLeft = 8 + depth * 12
+      const children = node.isFolder ? getChildren(node.id!) : []
+      const expanded = node.isFolder && node.id ? expandedFolders.has(node.id) : false
+      return (
+        <div className="mb-0.5">
+          <div
+            className={cn(
+              'flex items-center gap-1.5 p-1 rounded text-xs cursor-pointer hover:bg-accent',
+              selectedFileId === node.id && !node.isFolder && 'bg-accent'
+            )}
+            style={{ paddingLeft }}
+            onClick={() => {
+              if (node.isFolder && node.id) {
+                setExpandedFolders((prev: Set<number>) => {
+                  const next = new Set(prev)
+                  if (next.has(node.id!)) next.delete(node.id!)
+                  else next.add(node.id!)
+                  return next
+                })
+              }
+              else if (node.id) setSelectedFileId(node.id)
+            }}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('application/json', JSON.stringify({ id: node.id }))
+              // allow move effect
+              e.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragOver={(e) => {
+              // Allow dropping on folders only
+              if (node.isFolder) {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+              }
+            }}
+            onDrop={async (e) => {
+              if (!node.isFolder) return
+              e.preventDefault()
+              try {
+                const data = e.dataTransfer.getData('application/json')
+                const { id } = JSON.parse(data || '{}')
+                const dragged = files.find(f => f.id === Number(id))
+                if (!dragged) return
+                // Prevent no-op drops
+                if (dragged.parentId === node.id) return
+                await moveItem(dragged, node)
+                if (node.id) {
+                  setExpandedFolders((prev: Set<number>) => new Set(prev).add(node.id!))
+                }
+              } catch {
+                // ignore
+              }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, targetId: node.id })
+            }}
+          >
+            {node.isFolder ? (
+              expanded ? <FolderOpen className="size-3.5" /> : <Folder className="size-3.5" />
+            ) : (
+              <div className="flex items-center">
+                {getLanguageIcon(node.language || detectLanguageFromFileName(node.name), 14)}
+              </div>
+            )}
+            <span className="flex-1 truncate text-xs">{node.name}</span>
+            {!node.isFolder && node.id && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  deleteRecursive(node)
+                }}
+              >
+                <Trash2 className="size-2.5" />
+              </Button>
+            )}
+          </div>
+          {node.isFolder && expanded && (
+            <div>
+              {children.map((child) => (
+                <TreeNode key={child.id} node={child} depth={depth + 1} />
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
 
     return (
       <div className={cn('flex h-full flex-col border border-border bg-card', className)}>
@@ -391,7 +555,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={createNewFile}
+                  onClick={() => { setNewDialogType('file'); setNewDialogName(''); setShowNewDialog(true) }}
                   title="New File"
                   className="h-5 w-5"
                 >
@@ -400,7 +564,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={createNewFolder}
+                  onClick={() => { setNewDialogType('folder'); setNewDialogName(''); setShowNewDialog(true) }}
                   title="New Folder"
                   className="h-5 w-5"
                 >
@@ -409,57 +573,61 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-1.5">
-              {rootFiles.map((file) => (
-                <div key={file.id} className="mb-0.5 group">
-                  <div
-                    className={cn(
-                      'flex items-center gap-1.5 p-1 rounded text-xs cursor-pointer hover:bg-accent',
-                      selectedFileId === file.id && 'bg-accent'
-                    )}
-                    onClick={() => !file.isFolder && file.id && setSelectedFileId(file.id)}
-                  >
-                    {file.isFolder ? (
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (file.id) toggleFolder(file.id)
-                        }}
-                      >
-                        {expandedFolders.has(file.id!) ? (
-                          <FolderOpen className="size-3.5" />
-                        ) : (
-                          <Folder className="size-3.5" />
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        {getLanguageIcon(file.language || detectLanguageFromFileName(file.name), 14)}
-                      </div>
-                    )}
-                    <span className="flex-1 truncate text-xs">{file.name}</span>
-                    {!file.isFolder && file.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteFile(file.id!)
-                        }}
-                      >
-                        <Trash2 className="size-2.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+              {getChildren(null).map((node) => (
+                <TreeNode key={node.id} node={node} depth={0} />
               ))}
-              {rootFiles.length === 0 && (
+              {getChildren(null).length === 0 && (
                 <p className="text-xs text-muted-foreground p-1.5">
                   No files yet. Create one to get started!
                 </p>
               )}
             </div>
           </div>
+          {/* New Item Popup */}
+          {showNewDialog && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center">
+              <div className="fixed inset-0 bg-black/40" onClick={() => setShowNewDialog(false)} />
+              <div className="relative bg-background border border-border rounded-md p-4 w-[320px] shadow-lg">
+                <div className="mb-2 text-sm font-medium">
+                  {newDialogType === 'file' ? 'Create New File' : 'Create New Folder'}
+                </div>
+                <div className="mb-3">
+                  <Input
+                    autoFocus
+                    placeholder={newDialogType === 'file' ? 'e.g., main.py' : 'e.g., src'}
+                    value={newDialogName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDialogName(e.target.value)}
+                    onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const name = newDialogName.trim()
+                        if (!name) return
+                        await createInFolder(null, name, newDialogType === 'folder')
+                        setShowNewDialog(false)
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault()
+                        setShowNewDialog(false)
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => setShowNewDialog(false)}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const name = newDialogName.trim()
+                      if (!name) return
+                      await createInFolder(null, name, newDialogType === 'folder')
+                      setShowNewDialog(false)
+                    }}
+                  >
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Main Editor Area */}
           <ResizablePanelGroup direction="vertical" className="flex-1">
@@ -594,6 +762,83 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
             )}
           </ResizablePanelGroup>
         </div>
+      {/* Context Menu */}
+      {ctxMenu.visible && (
+        <div
+          className="fixed inset-0 z-50"
+          onClick={() => setCtxMenu({ visible: false, x: 0, y: 0 })}
+          onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ visible: false, x: 0, y: 0 }) }}
+        >
+          <div
+            className="absolute bg-popover text-popover-foreground border border-border rounded-md shadow-md text-sm py-1"
+            style={{ left: ctxMenu.x, top: ctxMenu.y, minWidth: 160 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent"
+              onClick={() => {
+                const target = files.find(f => f.id === ctxMenu.targetId)
+                if (!target) return
+                setRenameTarget(target)
+                setRenameName(target.name)
+                setShowRenameDialog(true)
+                setCtxMenu({ visible: false, x: 0, y: 0 })
+              }}
+            >
+              Rename
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent text-red-400"
+              onClick={async () => {
+                const target = files.find(f => f.id === ctxMenu.targetId)
+                setCtxMenu({ visible: false, x: 0, y: 0 })
+                if (target) await deleteRecursive(target)
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Dialog */}
+      {showRenameDialog && renameTarget && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowRenameDialog(false)} />
+          <div className="relative bg-background border border-border rounded-md p-4 w-[320px] shadow-lg">
+            <div className="mb-2 text-sm font-medium">Rename</div>
+            <div className="mb-3">
+              <Input
+                autoFocus
+                value={renameName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRenameName(e.target.value)}
+                onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const name = renameName.trim()
+                    if (!name || name === renameTarget!.name) { setShowRenameDialog(false); return }
+                    await renameItem(renameTarget!, name)
+                    setShowRenameDialog(false)
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setShowRenameDialog(false)
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setShowRenameDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={async () => {
+                const name = renameName.trim()
+                if (!name || !renameTarget) { setShowRenameDialog(false); return }
+                await renameItem(renameTarget!, name)
+                setShowRenameDialog(false)
+              }}>Rename</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     )
   }
@@ -604,3 +849,4 @@ CodeEditor.displayName = 'CodeEditor'
 export default CodeEditor
 
 
+ 
