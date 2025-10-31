@@ -75,12 +75,13 @@ export function buildORToolsFromRegistry(reg: ToolRegistry): ORTool[] {
 }
 
 // UI tools: intended for client execution only; server will return these tool_calls as intents
+// Note: Tool names use underscores instead of dots for Anthropic compatibility
 export function buildClientUITools(): ORTool[] {
 	return [
 		{
 			type: 'function',
 			function: {
-				name: 'editor.setCode',
+				name: 'editor_setCode',
 				description: 'Replace the entire editor content with optional language',
 				parameters: {
 					type: 'object',
@@ -95,7 +96,7 @@ export function buildClientUITools(): ORTool[] {
 		{
 			type: 'function',
 			function: {
-				name: 'editor.insertCode',
+				name: 'editor_insertCode',
 				description: 'Insert code at the current cursor or specified position',
 				parameters: {
 					type: 'object',
@@ -113,7 +114,7 @@ export function buildClientUITools(): ORTool[] {
 		{
 			type: 'function',
 			function: {
-				name: 'editor.createFile',
+				name: 'editor_createFile',
 				description: 'Create a new file in the editor/files db',
 				parameters: {
 					type: 'object',
@@ -129,7 +130,7 @@ export function buildClientUITools(): ORTool[] {
 		{
 			type: 'function',
 			function: {
-				name: 'editor.runCode',
+				name: 'editor_runCode',
 				description: 'Run the current file in the editor terminal',
 				parameters: { type: 'object', properties: {}, additionalProperties: false }
 			}
@@ -137,7 +138,7 @@ export function buildClientUITools(): ORTool[] {
 		{
 			type: 'function',
 			function: {
-				name: 'terminal.write',
+				name: 'terminal_write',
 				description: 'Open terminal if needed and write a line of output',
 				parameters: {
 					type: 'object',

@@ -56,7 +56,8 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     controllerRef.current?.abort()
     controllerRef.current = new AbortController()
     try {
-      // Phase 2: non-stream request that returns assistant content + tool intents
+      // Use clientIntents mode to allow agent to decide when to use tools
+      // The agent should respond conversationally when no tools are needed
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,11 +70,34 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
         }),
         signal: controllerRef.current.signal
       })
-      if (!res.ok) throw new Error('Chat request failed')
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '')
+        throw new Error(`Chat request failed: ${res.status} ${errorText.substring(0, 100)}`)
+      }
       const data = await res.json()
-      const assistantContent: string = data?.content || ''
+      const toolIntents = Array.isArray(data?.toolIntents) ? data.toolIntents : []
+      let assistantContent: string = data?.content || ''
+      
+      // Log for debugging
+      if (!assistantContent && toolIntents.length === 0) {
+        console.warn('Empty response from API:', { data, toolIntents, text })
+      }
+      
+      // Fallback handling for empty responses
+      if (!assistantContent) {
+        if (toolIntents.length > 0) {
+          // Has tool intents but no content - create a summary
+          const previews = toolIntents.slice(0, 3).map((t: any) => String(t?.name || 'tool')).join(', ')
+          const more = toolIntents.length > 3 ? ` (+${toolIntents.length - 3} more)` : ''
+          assistantContent = `I'll help you with that. Executing: ${previews}${more}.`
+        } else {
+          // No content and no tools - this indicates an API issue
+          assistantContent = "I'm having trouble processing that right now. Please try rephrasing your question or check the console for errors."
+        }
+      }
+      
       const savedId = await append('assistant', assistantContent, tid)
-      return { toolIntents: Array.isArray(data?.toolIntents) ? data.toolIntents : [], assistantMessageId: savedId }
+      return { toolIntents, assistantMessageId: savedId }
     } finally {
       setIsLoading(false)
     }

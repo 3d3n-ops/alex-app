@@ -41,11 +41,12 @@ export default function ChatPage() {
             const name = intent?.name
             const args = intent?.args || {}
             if (!editor) continue
-            if (name === 'editor.setCode') editor.setCode(String(args.code || ''), args.language)
-            else if (name === 'editor.insertCode') editor.insertCode(String(args.code || ''), args.position)
-            else if (name === 'editor.createFile') await editor.createFile(String(args.name || 'new.txt'), String(args.language || 'plaintext'), String(args.content || ''))
-            else if (name === 'editor.runCode') await editor.runCode()
-            else if (name === 'terminal.write') { editor.openTerminal(); editor.writeToTerminal(String(args.text || '')) }
+            // Support both old dot notation and new underscore notation for backward compatibility
+            if (name === 'editor.setCode' || name === 'editor_setCode') editor.setCode(String(args.code || ''), args.language)
+            else if (name === 'editor.insertCode' || name === 'editor_insertCode') editor.insertCode(String(args.code || ''), args.position)
+            else if (name === 'editor.createFile' || name === 'editor_createFile') await editor.createFile(String(args.name || 'new.txt'), String(args.language || 'plaintext'), String(args.content || ''))
+            else if (name === 'editor.runCode' || name === 'editor_runCode') await editor.runCode()
+            else if (name === 'terminal.write' || name === 'terminal_write') { editor.openTerminal(); editor.writeToTerminal(String(args.text || '')) }
           }
         }}
         isLoading={isLoading}

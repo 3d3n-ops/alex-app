@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test:chat": "node tests/test_chat_api.cjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.39",

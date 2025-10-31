@@ -75,6 +75,8 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
     const terminalRef = useRef<HTMLDivElement>(null)
     const terminalInstanceRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
+    const ptySessionRef = useRef<{ sessionId: string; token: string } | null>(null)
+    const ptyReaderAbortRef = useRef<AbortController | null>(null)
     const editorRef = useRef<any>(null)
     const browserRef = useRef<HTMLIFrameElement>(null)
 
@@ -100,18 +102,95 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         fitAddon.fit()
 
         term.writeln('Welcome to Code Editor Terminal!')
-        term.writeln('Type "help" for available commands.\r\n')
+        term.writeln('Connecting shell...\r\n')
+
+        // Hook input → PTY
+        term.onData(async (data) => {
+          const sess = ptySessionRef.current
+          if (!sess) return
+          try {
+            await fetch('/api/pty/input', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, data })
+            })
+          } catch {
+            // ignore transient
+          }
+        })
 
         // Handle window resize
         const handleResize = () => {
           if (fitAddonRef.current) {
             fitAddonRef.current.fit()
+            // Notify PTY of new size
+            const sess = ptySessionRef.current
+            if (sess && terminalInstanceRef.current) {
+              const cols = terminalInstanceRef.current.cols
+              const rows = terminalInstanceRef.current.rows
+              fetch('/api/pty/resize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, cols, rows })
+              }).catch(() => {})
+            }
           }
         }
         window.addEventListener('resize', handleResize)
 
+        // Establish PTY session and connect SSE stream
+        ;(async () => {
+          try {
+            const sessRes = await fetch('/api/pty/session', { method: 'POST' })
+            const { sessionId, token } = await sessRes.json()
+            ptySessionRef.current = { sessionId, token }
+
+            // Start SSE via fetch streaming POST
+            ptyReaderAbortRef.current?.abort()
+            const aborter = new AbortController()
+            ptyReaderAbortRef.current = aborter
+            const cols = terminalInstanceRef.current?.cols || 80
+            const rows = terminalInstanceRef.current?.rows || 24
+            const res = await fetch('/api/pty/connect', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId, token, cols, rows }),
+              signal: aborter.signal
+            })
+            const reader = res.body?.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            while (reader) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buffer += decoder.decode(value, { stream: true })
+              const parts = buffer.split(/\n\n/)
+              buffer = parts.pop() || ''
+              for (const part of parts) {
+                const line = part.trim()
+                if (!line.startsWith('data:')) continue
+                const payload = line.slice(5).trim()
+                if (payload === '["DONE"]') continue
+                try {
+                  const evt = JSON.parse(payload)
+                  if (evt?.type === 'stdout' && typeof evt.data === 'string') {
+                    terminalInstanceRef.current?.write(evt.data)
+                  } else if (evt?.type === 'exit') {
+                    terminalInstanceRef.current?.writeln(`\r\n[process exited with code ${evt.code}]`)
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+            }
+          } catch (err: any) {
+            terminalInstanceRef.current?.writeln(`\r\n[terminal error: ${String(err?.message || err)}]`)
+          }
+        })()
+
         return () => {
           window.removeEventListener('resize', handleResize)
+          ptyReaderAbortRef.current?.abort()
         }
       }
     }, [showTerminal])
@@ -274,62 +353,51 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
     // Execute code using Judge0 API
     const executeCode = async () => {
-      if (!language || languageConfigs[language].judge0Id === 0) {
-        terminalInstanceRef.current?.writeln('\r\nError: Cannot execute this file type.\r\n')
-        return
-      }
-
       setIsRunning(true)
       const term = terminalInstanceRef.current
-      if (term) {
-        term.writeln('\r\n--- Running code ---\r\n')
-      }
-
       try {
-        // Judge0 API endpoint (you'll need to configure this)
-        const JUDGE0_API_URL = process.env.NEXT_PUBLIC_JUDGE0_API_URL || 'https://judge0-ce.p.rapidapi.com'
-        
-        const response = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-RapidAPI-Key': process.env.NEXT_PUBLIC_JUDGE0_API_KEY || '',
-            'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
-          },
-          body: JSON.stringify({
-            source_code: code,
-            language_id: languageConfigs[language].judge0Id,
-            stdin: '',
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to execute code')
-        }
-
-        const result = await response.json()
-        
-        if (term) {
-          if (result.stdout) {
-            term.writeln(`\r\nOutput:\r\n${result.stdout}\r\n`)
-          }
-          if (result.stderr) {
-            term.writeln(`\r\nError:\r\n${result.stderr}\r\n`)
-          }
-          if (result.compile_output) {
-            term.writeln(`\r\nCompile Output:\r\n${result.compile_output}\r\n`)
-          }
-          if (result.status?.id === 3) {
-            term.writeln('\r\n✓ Execution completed successfully\r\n')
-          } else {
-            term.writeln(`\r\n✗ Execution failed with status: ${result.status?.description || 'Unknown'}\r\n`)
+        // Save current file to workspace
+        if (selectedFileId) {
+          const file = files.find((f) => f.id === selectedFileId)
+          if (file && !file.isFolder) {
+            await fetch('/api/workspace/file', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: file.path.replace(/^\//, ''), content: code })
+            })
           }
         }
-      } catch (error: any) {
-        if (term) {
-          term.writeln(`\r\nError executing code: ${error.message}\r\n`)
-          term.writeln('Note: Make sure JUDGE0_API_URL and JUDGE0_API_KEY are configured in your environment variables.\r\n')
+        term?.writeln('\r\n--- Running ---\r\n')
+        // Compose a simple run command based on language
+        let cmd = ''
+        if (language === 'javascript') {
+          const file = files.find((f) => f.id === selectedFileId)
+          cmd = file ? `node .${file.path}` : 'node -v'
+        } else if (language === 'python') {
+          const file = files.find((f) => f.id === selectedFileId)
+          cmd = file ? `python .${file.path}` : 'python --version'
+        } else if (language === 'rust') {
+          cmd = 'cargo run'
+        } else if (language === 'cpp') {
+          const file = files.find((f) => f.id === selectedFileId)
+          if (file) cmd = `g++ .${file.path} -o a.out && ./a.out`
+        } else if (language === 'java') {
+          const file = files.find((f) => f.id === selectedFileId)
+          if (file) cmd = `javac .${file.path} && java ${file.name.replace(/\.java$/, '')}`
         }
+        if (!cmd) cmd = 'echo "No run command for this file type."\r\n'
+        const sess = ptySessionRef.current
+        if (sess) {
+          await fetch('/api/pty/input', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, data: cmd + '\r' })
+          })
+        } else {
+          term?.writeln('Terminal not connected.')
+        }
+      } catch (e: any) {
+        term?.writeln(`Error: ${String(e?.message || e)}`)
       } finally {
         setIsRunning(false)
       }
@@ -659,7 +727,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                       variant="ghost"
                       size="sm"
                       onClick={executeCode}
-                      disabled={isRunning || !selectedFileId || languageConfigs[language]?.judge0Id === 0}
+                      disabled={isRunning || !selectedFileId}
                       className="h-7 px-2 text-xs"
                     >
                       {isRunning ? 'Running...' : 'Run'}

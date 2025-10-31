@@ -1,4 +1,7 @@
-export type ORMessage = { role: 'system' | 'user' | 'assistant' | 'tool'; content: string }
+export type ORMessage = 
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string; tool_calls?: any[] }
+  | { role: 'tool'; content: string; tool_call_id: string }
 
 export type ORTool = {
   type: 'function'
@@ -81,8 +84,9 @@ export async function streamOpenRouterChat(params: OpenRouterChatParams): Promis
 
 export function mapProviderToModel(provider?: string) {
   const p = (provider || '').toLowerCase()
-  if (p.includes('anthropic') || p.includes('sonnet')) return 'anthropic/sonnet-4.5'
-  return 'openai/gpt-5'
+  // Default to Anthropic Sonnet 4.5
+  if (p.includes('openai') || p.includes('gpt')) return 'openai/gpt-5'
+  return 'anthropic/claude-sonnet-4.5'
 }
 
 // Non-streaming one-off chat completion (supports tools)
