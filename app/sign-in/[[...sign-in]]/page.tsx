@@ -1,6 +1,8 @@
 import { SignIn } from "@clerk/nextjs"
 
 export default function SignInPage() {
+  // Note: Clerk will handle redirect based on middleware logic
+  // We use a catch-all redirect URL that will be handled by middleware
   return (
     <div className="min-h-screen bg-[#161210] flex items-center justify-center">
       <SignIn
@@ -10,8 +12,9 @@ export default function SignInPage() {
             card: "bg-[#161210] border border-white/10",
           },
         }}
-        afterSignInUrl="/onboarding/level"
-        afterSignUpUrl="/onboarding/level"
+        // Let middleware handle the redirect logic
+        afterSignInUrl="/dashboard"
+        afterSignUpUrl="/dashboard"
       />
     </div>
   )

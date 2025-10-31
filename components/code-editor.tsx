@@ -50,10 +50,11 @@ interface CodeEditorProps {
   className?: string
   initialLanguage?: string
   onCodeChange?: (code: string) => void
+  threadId?: string // Thread-scoped files
 }
 
 const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
-  ({ className, initialLanguage = 'python', onCodeChange }, ref) => {
+  ({ className, initialLanguage = 'python', onCodeChange, threadId = 'default' }, ref) => {
     const [code, setCode] = useState('')
     const [language, setLanguage] = useState(initialLanguage)
     const [files, setFiles] = useState<FileItem[]>([])
@@ -212,15 +213,22 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       }
     }, [code, showBrowser, language])
 
-    // Load files from database
+    // Load files from database (thread-scoped)
     useEffect(() => {
       const loadFiles = async () => {
-        const allFiles = await db.files.toArray()
-        setFiles(allFiles)
+        if (!threadId) return // Wait for threadId
         
-        // If no files exist, create a default file
-        if (allFiles.length === 0) {
+        // Filter files by threadId
+        const threadFiles = await db.files
+          .where('threadId')
+          .equals(threadId)
+          .toArray()
+        setFiles(threadFiles)
+        
+        // If no files exist for this thread, create a default file
+        if (threadFiles.length === 0) {
           const defaultFile: FileItem = {
+            threadId,
             name: 'main.py',
             content: '# Welcome to the Code Editor!\nprint("Hello, World!")',
             language: 'python',
@@ -235,9 +243,9 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           setSelectedFileId(fileId)
           setCode(defaultFile.content)
           setLanguage(defaultFile.language)
-        } else if (allFiles.length > 0 && !selectedFileId) {
+        } else if (threadFiles.length > 0 && !selectedFileId) {
           // Select first file
-          const firstFile = allFiles[0]
+          const firstFile = threadFiles[0]
           if (firstFile.id) {
             setSelectedFileId(firstFile.id)
             setCode(firstFile.content)
@@ -246,7 +254,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         }
       }
       loadFiles()
-    }, [selectedFileId])
+    }, [selectedFileId, threadId])
 
     // Update code when file changes and auto-detect language
     useEffect(() => {
@@ -267,18 +275,21 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
     // Save current file
     const saveFile = useCallback(async () => {
-      if (selectedFileId) {
+      if (selectedFileId && threadId) {
         const file = files.find((f) => f.id === selectedFileId)
         if (file && !file.isFolder) {
           await db.files.update(selectedFileId, {
             content: code,
             updatedAt: Date.now(),
           })
-          const updatedFiles = await db.files.toArray()
+          const updatedFiles = await db.files
+            .where('threadId')
+            .equals(threadId)
+            .toArray()
           setFiles(updatedFiles)
         }
       }
-    }, [selectedFileId, files, code])
+    }, [selectedFileId, files, code, threadId])
 
     // Auto-save after debounce
     useEffect(() => {
@@ -314,7 +325,12 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         onCodeChange?.(code + '\n' + newCode)
       },
       createFile: async (name: string, fileLanguage: string, content: string = '') => {
+        if (!threadId) {
+          console.error('Cannot create file: threadId is required')
+          return
+        }
         const newFile: FileItem = {
+          threadId, // Thread-scoped
           name,
           content,
           language: fileLanguage,
@@ -324,7 +340,10 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           updatedAt: Date.now(),
         }
         const id = await db.files.add(newFile)
-        const updatedFiles = await db.files.toArray()
+        const updatedFiles = await db.files
+          .where('threadId')
+          .equals(threadId)
+          .toArray()
         setFiles(updatedFiles)
         setSelectedFileId(Number(id))
         setCode(content)
@@ -367,37 +386,77 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
             })
           }
         }
-        term?.writeln('\r\n--- Running ---\r\n')
-        // Compose a simple run command based on language
-        let cmd = ''
-        if (language === 'javascript') {
-          const file = files.find((f) => f.id === selectedFileId)
-          cmd = file ? `node .${file.path}` : 'node -v'
-        } else if (language === 'python') {
-          const file = files.find((f) => f.id === selectedFileId)
-          cmd = file ? `python .${file.path}` : 'python --version'
-        } else if (language === 'rust') {
-          cmd = 'cargo run'
-        } else if (language === 'cpp') {
-          const file = files.find((f) => f.id === selectedFileId)
-          if (file) cmd = `g++ .${file.path} -o a.out && ./a.out`
-        } else if (language === 'java') {
-          const file = files.find((f) => f.id === selectedFileId)
-          if (file) cmd = `javac .${file.path} && java ${file.name.replace(/\.java$/, '')}`
+
+        // Get Judge0 language ID
+        const languageConfig = languageConfigs[language]
+        if (!languageConfig || !languageConfig.judge0Id) {
+          term?.writeln(`\r\n❌ Language "${language}" is not supported for code execution.\r\n`)
+          return
         }
-        if (!cmd) cmd = 'echo "No run command for this file type."\r\n'
-        const sess = ptySessionRef.current
-        if (sess) {
-          await fetch('/api/pty/input', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, data: cmd + '\r' })
+
+        term?.writeln(`\r\n⏳ Executing ${language} code...\r\n`)
+        
+        // Submit to Judge0 API
+        const response = await fetch('/api/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            languageId: languageConfig.judge0Id,
+            stdin: '',
+            cpuTimeLimit: 2,
+            memoryLimit: 128000,
           })
-        } else {
-          term?.writeln('Terminal not connected.')
+        })
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+          term?.writeln(`❌ Execution failed: ${error.error || error.message || 'Unknown error'}\r\n`)
+          return
         }
+
+        const result = await response.json()
+
+        if (result.error) {
+          term?.writeln(`❌ ${result.error}\r\n`)
+          if (result.token) {
+            term?.writeln(`Token: ${result.token}\r\n`)
+          }
+          return
+        }
+
+        // Display results
+        if (result.compileOutput) {
+          term?.writeln(`📝 Compilation Output:\r\n${result.compileOutput}\r\n`)
+        }
+
+        if (result.stderr) {
+          term?.writeln(`⚠️  Error Output:\r\n${result.stderr}\r\n`)
+        }
+
+        if (result.stdout) {
+          term?.writeln(`✅ Output:\r\n${result.stdout}\r\n`)
+        }
+
+        if (result.success) {
+          term?.writeln(`✓ Execution completed successfully`)
+          if (result.time) {
+            term?.writeln(`⏱️  Time: ${result.time}s`)
+          }
+          if (result.memory) {
+            term?.writeln(`💾 Memory: ${(result.memory / 1024).toFixed(2)} KB`)
+          }
+          term?.writeln('')
+        } else {
+          term?.writeln(`❌ Execution failed: ${result.status || 'Unknown error'}`)
+          if (result.message) {
+            term?.writeln(`Message: ${result.message}`)
+          }
+          term?.writeln('')
+        }
+
       } catch (e: any) {
-        term?.writeln(`Error: ${String(e?.message || e)}`)
+        term?.writeln(`❌ Error: ${String(e?.message || e)}\r\n`)
       } finally {
         setIsRunning(false)
       }
@@ -423,9 +482,11 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
     // File management functions (hierarchical)
     const createInFolder = async (parent: FileItem | null, name: string, isFolder: boolean) => {
+      if (!threadId) return // ThreadId required
       const detectedLanguage = isFolder ? '' : detectLanguageFromFileName(name)
       const parentPath = parent?.path || '/'
       const newItem: FileItem = {
+        threadId, // Thread-scoped
         name,
         content: isFolder ? '' : '',
         language: detectedLanguage,
@@ -436,7 +497,10 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         updatedAt: Date.now(),
       }
       const id = await db.files.add(newItem)
-      const updated = await db.files.toArray()
+      const updated = await db.files
+        .where('threadId')
+        .equals(threadId)
+        .toArray()
       setFiles(updated)
       if (!isFolder) {
         setSelectedFileId(Number(id))
@@ -459,7 +523,13 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           await db.files.update(d.id!, { path: newPath + suffix, updatedAt: Date.now() })
         }
       }
-      setFiles(await db.files.toArray())
+      if (threadId) {
+        const updated = await db.files
+          .where('threadId')
+          .equals(threadId)
+          .toArray()
+        setFiles(updated)
+      }
     }
 
     const deleteRecursive = async (item: FileItem) => {
@@ -471,8 +541,14 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         }
       }
       await db.files.delete(item.id)
-      const updated = await db.files.toArray()
-      setFiles(updated)
+      let updated: FileItem[] = []
+      if (threadId) {
+        updated = await db.files
+          .where('threadId')
+          .equals(threadId)
+          .toArray()
+        setFiles(updated)
+      }
       if (selectedFileId === item.id) {
         const remainingFiles = updated.filter((f) => !f.isFolder)
         if (remainingFiles.length > 0 && remainingFiles[0].id) {

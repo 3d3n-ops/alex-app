@@ -1,10 +1,20 @@
 import { loadAgentConfig, normalizeAgent, type AgentId } from '@/lib/agents'
 import { streamOpenRouterChat, mapProviderToModel, type ORMessage, openRouterChatOnce } from '@/lib/openrouter'
-import { buildTools, buildORToolsFromRegistry, buildClientUITools } from '@/lib/tools'
+import { buildTools, buildORToolsFromRegistry, buildClientUITools, buildEditorTools } from '@/lib/tools'
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { formatUserProfileAsContext } from '@/lib/user-profile'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+	const { userId } = await auth()
+	if (!userId) {
+		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'Content-Type': 'application/json' }
+		})
+	}
+
 	try {
 		const body = await req.json().catch(() => ({}))
 		const agent: AgentId = normalizeAgent(body.agent)
@@ -14,9 +24,24 @@ export async function POST(req: Request) {
 	  const clientIntents: boolean = Boolean(body.clientIntents)
 	  const threadId: string | undefined = body.threadId
 
+	// Load agent config and user profile
 	const { systemPrompt } = await loadAgentConfig(agent)
+	
+	// Get user profile context
+	const user = await currentUser()
+	const userProfileContext = user ? formatUserProfileAsContext({
+		programmingLevel: user.publicMetadata?.programmingLevel as any,
+		languages: Array.isArray(user.publicMetadata?.languages) 
+			? user.publicMetadata.languages as string[]
+			: [],
+		onboardingCompleted: Boolean(user.publicMetadata?.onboardingCompleted),
+	}) : ''
+
+	// Combine system prompt with user profile context
+	const enhancedSystemPrompt = systemPrompt + userProfileContext
+
 	const orMessages: ORMessage[] = [
-		{ role: 'system', content: systemPrompt },
+		{ role: 'system', content: enhancedSystemPrompt },
 		...messages
 	]
   const model = mapProviderToModel(provider)
@@ -31,13 +56,15 @@ export async function POST(req: Request) {
   }
 
   if (clientIntents) {
-    // ReAct-style loop: Execute server tools (readFile, globFile, grepFile) automatically,
-    // return client UI tool intents when agent is ready to take actions
+    // ReAct-style loop: Execute editor tools (editor_readFile, editor_listFiles) and other tools automatically,
+    // return client UI tool intents (editor_createFile) when agent is ready to take actions
     const uiTools = buildClientUITools()
-    const serverRegistry = buildTools(threadId) // Pass threadId to tools
+    const editorRegistry = buildEditorTools(threadId) // Editor tools (server-side, thread-scoped)
+    const editorTools = buildORToolsFromRegistry(editorRegistry)
+    const serverRegistry = buildTools(threadId) // Other server tools (globFile, grepFile, etc.)
     const serverTools = buildORToolsFromRegistry(serverRegistry)
-    // Combine both server tools and UI tools - agent can use either
-    const allTools = [...serverTools, ...uiTools]
+    // Combine editor tools, server tools, and UI tools - agent can use any
+    const allTools = [...editorTools, ...serverTools, ...uiTools]
     
     let turnMessages: ORMessage[] = [...orMessages]
     const maxTurns = 6 // Allow more turns for ReAct reasoning
@@ -89,16 +116,68 @@ export async function POST(req: Request) {
         break
       }
       
-      // Separate server tools (auto-execute) from UI tools (return as intents)
+      // Separate editor tools (auto-execute), server tools (auto-execute), and UI tools (return as intents)
+      const editorToolCalls: any[] = []
       const serverToolCalls: any[] = []
       const uiToolCalls: any[] = []
       
       for (const call of toolCalls) {
         const name = call?.function?.name || call?.name
-        if (serverRegistry[name]) {
+        if (editorRegistry[name]) {
+          editorToolCalls.push(call)
+        } else if (serverRegistry[name]) {
           serverToolCalls.push(call)
         } else {
           uiToolCalls.push(call)
+        }
+      }
+      
+      // Execute editor tools automatically (same as server tools)
+      for (const call of editorToolCalls) {
+        const name: string | undefined = call?.function?.name || call?.name
+        const argsRaw: string | object | undefined = call?.function?.arguments || call?.arguments
+        const callId: string | undefined = call?.id || call?.call_id
+        const spec = name ? editorRegistry[name] : undefined
+        
+        if (!name || !spec) {
+          console.warn(`[Chat API] Editor tool not found: ${name || 'unknown'}`)
+          turnMessages.push({ 
+            role: 'tool', 
+            content: `Tool not found: ${name || 'unknown'}`,
+            tool_call_id: callId || 'unknown'
+          })
+          continue
+        }
+        
+        let parsed: unknown = {}
+        try {
+          const asObj = typeof argsRaw === 'string' ? JSON.parse(argsRaw) : (argsRaw || {})
+          parsed = spec.zodSchema.parse(asObj)
+        } catch (e: any) {
+          console.error(`[Chat API] Invalid args for ${name}:`, { argsRaw, error: e?.message || e, threadId })
+          turnMessages.push({ 
+            role: 'tool', 
+            content: `Invalid args for ${name}: ${String(e?.message || e)}`,
+            tool_call_id: callId || 'unknown'
+          })
+          continue
+        }
+        
+        try {
+          const out = await spec.execute(parsed)
+          turnMessages.push({ 
+            role: 'tool', 
+            content: JSON.stringify(out),
+            tool_call_id: callId || 'unknown'
+          })
+        } catch (e: any) {
+          const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
+          console.error(`[Chat API] Editor tool execution error:`, { tool: name, args: parsed, error: errorMsg, threadId })
+          turnMessages.push({ 
+            role: 'tool', 
+            content: errorMsg,
+            tool_call_id: callId || 'unknown'
+          })
         }
       }
       
@@ -123,6 +202,7 @@ export async function POST(req: Request) {
         const spec = name ? serverRegistry[name] : undefined
         
         if (!name || !spec) {
+          console.warn(`[Chat API] Tool not found: ${name || 'unknown'}`)
           turnMessages.push({ 
             role: 'tool', 
             content: `Tool not found: ${name || 'unknown'}`,
@@ -136,6 +216,7 @@ export async function POST(req: Request) {
           const asObj = typeof argsRaw === 'string' ? JSON.parse(argsRaw) : (argsRaw || {})
           parsed = spec.zodSchema.parse(asObj)
         } catch (e: any) {
+          console.error(`[Chat API] Invalid args for ${name}:`, { argsRaw, error: e?.message || e, threadId })
           turnMessages.push({ 
             role: 'tool', 
             content: `Invalid args for ${name}: ${String(e?.message || e)}`,
@@ -152,9 +233,11 @@ export async function POST(req: Request) {
             tool_call_id: callId || 'unknown'
           })
         } catch (e: any) {
+          const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
+          console.error(`[Chat API] Tool execution error:`, { tool: name, args: parsed, error: errorMsg, threadId })
           turnMessages.push({ 
             role: 'tool', 
-            content: `Error executing ${name}: ${String(e?.message || e)}`,
+            content: errorMsg,
             tool_call_id: callId || 'unknown'
           })
         }
@@ -166,9 +249,46 @@ export async function POST(req: Request) {
       }
     }
     
-    // Return final response with UI intents
-    return new Response(JSON.stringify({ content: finalContent || 'I processed your request.', toolIntents: finalUIIntents }), {
-      headers: { 'Content-Type': 'application/json' }
+    // Return streaming response with UI intents
+    // Stream the content in chunks to enable real-time TTS and progressive display
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: any) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        }
+        
+        // First send tool intents if any
+        if (finalUIIntents.length > 0) {
+          send({ type: 'toolIntents', toolIntents: finalUIIntents })
+        }
+        
+        // Stream content in chunks for progressive display and TTS
+        const content = finalContent || 'I processed your request.'
+        const chunkSize = 50 // Characters per chunk
+        let offset = 0
+        
+        while (offset < content.length) {
+          const chunk = content.substring(offset, offset + chunkSize)
+          send({ type: 'content', delta: chunk })
+          offset += chunkSize
+          // Small delay to make streaming visible
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
+        
+        // Send completion
+        send({ type: 'done', content })
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
+      }
+    })
+    
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive'
+      }
     })
   }
 
@@ -240,9 +360,11 @@ export async function POST(req: Request) {
           tool_call_id: callId || 'unknown'
         })
       } catch (e: any) {
+        const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
+        console.error(`[Chat API] Tool execution error:`, { tool: name, args: parsed, error: errorMsg, threadId })
         turnMessages.push({ 
           role: 'tool', 
-          content: `Error executing ${name}: ${String(e?.message || e)}`,
+          content: errorMsg,
           tool_call_id: callId || 'unknown'
         })
       }

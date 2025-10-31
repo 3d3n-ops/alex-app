@@ -2,15 +2,33 @@
 
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export default function OnboardingLevelPage() {
   const router = useRouter()
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null)
 
-  const handleLevelSelect = (level: string) => {
+  // Check if already completed onboarding
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const res = await fetch('/api/user/profile')
+        if (res.ok) {
+          const profile = await res.json()
+          if (profile.onboardingCompleted) {
+            router.push('/dashboard')
+          }
+        }
+      } catch (error) {
+        // Ignore errors, just proceed with onboarding
+      }
+    }
+    checkOnboarding()
+  }, [router])
+
+  const handleLevelSelect = async (level: string) => {
     setSelectedLevel(level)
-    // Store in localStorage or database
+    // Store temporarily in localStorage for next step
     localStorage.setItem("programmingLevel", level)
     // Navigate to next onboarding step
     setTimeout(() => {

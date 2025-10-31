@@ -147,16 +147,29 @@ export async function listFiles(params: z.infer<typeof listFilesSchema>, threadI
 	try {
 		const allFiles = await listFilesInWorkspace(threadId, recursive ? undefined : directory)
 		
+		// Log what we found (subtle logging)
+		if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+			console.log(`[listFiles] Found ${allFiles.length} files in workspace for thread ${threadId?.substring(0, 8)}...`, {
+				threadId,
+				directory,
+				recursive,
+				files: allFiles.slice(0, 20), // Show first 20 files
+				totalCount: allFiles.length
+			})
+		}
+		
 		if (!recursive && directory !== '.' && directory !== '') {
 			// Filter to show only files in the specified directory
 			const dirPath = directory.replace(/^\/+/, '').replace(/\/+$/, '')
 			const dirPrefix = dirPath ? `${dirPath}/` : ''
+			const filtered = allFiles
+				.filter(f => f.startsWith(dirPrefix) && !f.substring(dirPrefix.length).includes('/'))
+				.map(f => f.substring(dirPrefix.length || 0))
+			
 			return {
 				directory: directory || '.',
-				files: allFiles
-					.filter(f => f.startsWith(dirPrefix) && !f.substring(dirPrefix.length).includes('/'))
-					.map(f => f.substring(dirPrefix.length || 0)),
-				count: allFiles.filter(f => f.startsWith(dirPrefix) && !f.substring(dirPrefix.length).includes('/')).length
+				files: filtered,
+				count: filtered.length
 			}
 		}
 		
@@ -166,6 +179,10 @@ export async function listFiles(params: z.infer<typeof listFilesSchema>, threadI
 			count: allFiles.length
 		}
 	} catch (error: any) {
+		// Log the error
+		if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+			console.error(`[listFiles] Error:`, { threadId, directory, error: error.message || error })
+		}
 		return {
 			directory: directory || '.',
 			error: error.message || 'Failed to list files',

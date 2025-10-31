@@ -2,6 +2,7 @@ import { loadAgentConfig, normalizeAgent, type AgentId } from '@/lib/agents'
 import { buildClientUITools, buildORToolsFromRegistry, buildTools } from '@/lib/tools'
 import { openRouterChatOnce, type ORMessage, type ORTool } from '@/lib/openrouter'
 import { groqChatOnce, defaultGroqModel } from '@/lib/groq'
+import { auth } from '@clerk/nextjs/server'
 
 export const runtime = 'nodejs'
 
@@ -24,6 +25,14 @@ type ProviderResult = {
 }
 
 export async function POST(req: Request) {
+	const { userId } = await auth()
+	if (!userId) {
+		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'Content-Type': 'application/json' }
+		})
+	}
+
 	const body = (await req.json().catch(() => ({}))) as CompareBody
 	const agent: AgentId = normalizeAgent(body.agent)
 	const enableTools: boolean = Boolean(body.enableTools)

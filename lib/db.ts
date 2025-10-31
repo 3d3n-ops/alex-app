@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie'
 
 export interface FileItem {
   id?: number
+  threadId: string // Thread-scoped files
   name: string
   content: string
   language: string
@@ -31,6 +32,22 @@ export class CodeEditorDB extends Dexie {
         for (const row of rows) {
           if (typeof row.order !== 'number') (row as any).order = 0
           await table.put(row)
+        }
+      })
+    // Version 3: Add threadId for thread-scoped files
+    this.version(3)
+      .stores({
+        files: '++id, threadId, name, path, parentId, isFolder, order, createdAt, updatedAt, [threadId+path]',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<FileItem>('files')
+        const rows = await table.toArray()
+        for (const row of rows) {
+          // Set default threadId for existing files (migrate to 'default' thread)
+          if (!(row as any).threadId) {
+            (row as any).threadId = 'default'
+            await table.put(row)
+          }
         }
       })
   }

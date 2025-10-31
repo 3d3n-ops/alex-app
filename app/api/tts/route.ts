@@ -3,9 +3,19 @@
  * Supports streaming text-to-speech as text comes in
  */
 
+import { auth } from '@clerk/nextjs/server'
+
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const text = body.text || ''

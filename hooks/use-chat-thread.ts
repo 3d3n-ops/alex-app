@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { chatDb, type ChatMessageRow } from '@/lib/chat-db'
 import { splitMessageIntoBubbles } from '@/lib/message-splitter'
 import type { AgentId } from '@/lib/agents'
-import { useTTS } from './use-tts'
+import { useStreamingTTS } from './use-tts'
 import { useWorkspaceSync } from './use-workspace-sync'
 
 export type AgentMode = 'alexTutor' | 'alexExplore'
@@ -19,12 +19,19 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
   const [isLoading, setIsLoading] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
   
-  // TTS support
-  const tts = useTTS({
+  // Streaming TTS support - speaks as text arrives
+  const streamingTTS = useStreamingTTS({
     voice: 'alloy',
     speed: mode === 'alexTutor' ? 1.0 : 1.1, // Slightly faster for Explore mode
     model: 'tts-1',
   })
+  
+  // For backward compatibility
+  const tts = {
+    isEnabled: streamingTTS.isEnabled,
+    setIsEnabled: streamingTTS.setIsEnabled,
+    stop: streamingTTS.stop,
+  }
   
   // Sync workspace IndexedDB to server cache
   useWorkspaceSync(threadId)
@@ -67,8 +74,17 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     const tid = await ensureThread()
     await append('user', text, tid)
     setIsLoading(true)
+    
+    // Stop any ongoing TTS when new message starts
+    streamingTTS.stop()
+    
     controllerRef.current?.abort()
     controllerRef.current = new AbortController()
+    
+    let assistantContent = ''
+    let toolIntents: any[] = []
+    let streamingContentId: number | undefined
+    
     try {
       // Use clientIntents mode to allow agent to decide when to use tools
       // The agent should respond conversationally when no tools are needed
@@ -85,43 +101,129 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
         }),
         signal: controllerRef.current.signal
       })
+      
       if (!res.ok) {
         const errorText = await res.text().catch(() => '')
         throw new Error(`Chat request failed: ${res.status} ${errorText.substring(0, 100)}`)
       }
-      const data = await res.json()
-      const toolIntents = Array.isArray(data?.toolIntents) ? data.toolIntents : []
-      let assistantContent: string = data?.content || ''
       
-      // Log for debugging
-      if (!assistantContent && toolIntents.length === 0) {
-        console.warn('Empty response from API:', { data, toolIntents, text })
-      }
+      // Check if response is streaming (SSE) or JSON
+      const contentType = res.headers.get('content-type') || ''
       
-      // Fallback handling for empty responses
-      if (!assistantContent) {
-        if (toolIntents.length > 0) {
-          // Has tool intents but no content - create a summary
-          const previews = toolIntents.slice(0, 3).map((t: any) => String(t?.name || 'tool')).join(', ')
-          const more = toolIntents.length > 3 ? ` (+${toolIntents.length - 3} more)` : ''
-          assistantContent = `I'll help you with that. Executing: ${previews}${more}.`
-        } else {
-          // No content and no tools - this indicates an API issue
-          assistantContent = "I'm having trouble processing that right now. Please try rephrasing your question or check the console for errors."
+      if (contentType.includes('event-stream')) {
+        // Handle streaming response
+        const reader = res.body?.getReader()
+        const decoder = new TextDecoder()
+        
+        if (!reader) {
+          throw new Error('No response body')
         }
+        
+        // Create streaming message in DB
+        const streamingMessage: ChatMessageRow = {
+          threadId: tid,
+          role: 'assistant',
+          content: '', // Will be updated as chunks arrive
+          createdAt: Date.now(),
+        }
+        streamingContentId = await chatDb.messages.add(streamingMessage)
+        setMessages(prev => [...prev, { ...streamingMessage, id: streamingContentId }])
+        
+        let buffer = ''
+        
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const dataStr = line.slice(6).trim()
+            if (dataStr === '[DONE]' || !dataStr) continue
+            
+            try {
+              const data = JSON.parse(dataStr)
+              
+              if (data.type === 'toolIntents') {
+                toolIntents = Array.isArray(data.toolIntents) ? data.toolIntents : []
+              } else if (data.type === 'content' && data.delta) {
+                // Append delta to content
+                assistantContent += data.delta
+                
+                // Update streaming message in DB
+                if (streamingContentId) {
+                  await chatDb.messages.update(streamingContentId, { content: assistantContent })
+                  setMessages(prev => prev.map(m => 
+                    m.id === streamingContentId ? { ...m, content: assistantContent } : m
+                  ))
+                }
+                
+                // Feed to streaming TTS
+                if (streamingTTS.isEnabled) {
+                  streamingTTS.addText(data.delta)
+                }
+              } else if (data.type === 'done') {
+                // Finalize
+                if (data.content) assistantContent = data.content
+                if (streamingContentId) {
+                  await chatDb.messages.update(streamingContentId, { content: assistantContent })
+                }
+                // Flush remaining TTS buffer
+                if (streamingTTS.isEnabled) {
+                  streamingTTS.flush()
+                }
+              }
+            } catch (e) {
+              // Ignore JSON parse errors for malformed chunks
+            }
+          }
+        }
+      } else {
+        // Fallback to JSON response (non-streaming)
+        const data = await res.json()
+        toolIntents = Array.isArray(data?.toolIntents) ? data.toolIntents : []
+        assistantContent = data?.content || ''
+        
+        // Fallback handling for empty responses
+        if (!assistantContent) {
+          if (toolIntents.length > 0) {
+            const previews = toolIntents.slice(0, 3).map((t: any) => String(t?.name || 'tool')).join(', ')
+            const more = toolIntents.length > 3 ? ` (+${toolIntents.length - 3} more)` : ''
+            assistantContent = `I'll help you with that. Executing: ${previews}${more}.`
+          } else {
+            assistantContent = "I'm having trouble processing that right now. Please try rephrasing your question or check the console for errors."
+          }
+        }
+        
+        const savedId = await append('assistant', assistantContent, tid)
+        
+        // Trigger TTS for the assistant response
+        if (assistantContent && streamingTTS.isEnabled) {
+          streamingTTS.addText(assistantContent)
+          streamingTTS.flush()
+        }
+        
+        return { toolIntents, assistantMessageId: savedId }
       }
       
-      // Split message into bubbles based on agent mode
-      const bubbles = splitMessageIntoBubbles(assistantContent, mode)
-      // Store the original content but we'll use bubbles for display
-      const savedId = await append('assistant', assistantContent, tid)
-      
-      // Trigger TTS for the assistant response
-      if (assistantContent && tts.isEnabled) {
-        tts.speak(assistantContent, false)
+      return { toolIntents, assistantMessageId: streamingContentId }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        // Request was cancelled, cleanup
+        if (streamingContentId) {
+          await chatDb.messages.delete(streamingContentId)
+          setMessages(prev => prev.filter(m => m.id !== streamingContentId))
+        }
+        return { toolIntents: [], assistantMessageId: undefined }
       }
       
-      return { toolIntents, assistantMessageId: savedId, bubbles }
+      // Handle error - create error message
+      const errorMsg = error?.message || 'An error occurred'
+      const savedId = await append('assistant', `Sorry, I encountered an error: ${errorMsg}`, tid)
+      return { toolIntents: [], assistantMessageId: savedId }
     } finally {
       setIsLoading(false)
     }

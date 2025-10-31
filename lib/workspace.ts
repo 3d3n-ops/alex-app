@@ -1,66 +1,46 @@
 /**
- * Workspace operations - now using thread-scoped storage via API
- * For server-side use (tools), this calls the workspace API
+ * Workspace operations - using thread-scoped storage
+ * For server-side use (tools), directly accesses the workspace cache
  * For client-side use, use workspace-db.ts directly
  */
 
-const WORKSPACE_API_URL = process.env.WORKSPACE_API_URL || '/api/workspace'
+// Server-side workspace operations (used by tools) - direct cache access
+import { 
+  readFileFromCache, 
+  writeFileToCache, 
+  deleteFileFromCache, 
+  listFilesFromCache 
+} from '@/lib/workspace-cache'
 
-// Server-side workspace operations (used by tools)
 export async function readFileInWorkspace(relPath: string, threadId: string): Promise<string> {
-  const url = new URL(`${WORKSPACE_API_URL}?threadId=${encodeURIComponent(threadId)}&path=${encodeURIComponent(relPath)}`)
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-  })
+  const content = readFileFromCache(threadId, relPath)
   
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Failed to read file: ${relPath}`)
+  if (content === undefined) {
+    throw new Error(`File not found: ${relPath}`)
   }
   
-  const data = await res.json()
-  return data.content
+  return content
 }
 
 export async function writeFileInWorkspace(relPath: string, content: string, threadId: string): Promise<void> {
-  const res = await fetch(WORKSPACE_API_URL, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ threadId, path: relPath, content })
-  })
+  writeFileToCache(threadId, relPath, content)
   
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Failed to write file: ${relPath}`)
+  // Log the write for debugging
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+    console.log(`[Workspace] File written to cache: ${relPath}`, {
+      threadId: threadId.substring(0, 8) + '...',
+      path: relPath,
+      contentLength: content.length
+    })
   }
 }
 
 export async function deleteInWorkspace(relPath: string, threadId: string): Promise<void> {
-  const url = new URL(`${WORKSPACE_API_URL}?threadId=${encodeURIComponent(threadId)}&path=${encodeURIComponent(relPath)}`)
-  const res = await fetch(url.toString(), {
-    method: 'DELETE',
-  })
-  
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Failed to delete file: ${relPath}`)
-  }
+  deleteFileFromCache(threadId, relPath)
 }
 
 export async function listFilesInWorkspace(threadId: string, directory?: string): Promise<string[]> {
-  const res = await fetch(WORKSPACE_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ threadId, directory: directory || '.' })
-  })
-  
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || 'Failed to list files')
-  }
-  
-  const data = await res.json()
-  return data.files || []
+  return listFilesFromCache(threadId, directory)
 }
 
 // Legacy functions for backwards compatibility (will be removed)

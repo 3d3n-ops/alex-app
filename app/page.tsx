@@ -1,25 +1,49 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { useSignIn } from "@clerk/nextjs"
+import { useSignIn, useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 export default function Home() {
   const { signIn } = useSignIn()
+  const { user, isLoaded } = useUser()
   const router = useRouter()
+
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isLoaded && user) {
+      const onboardingCompleted = Boolean(user.publicMetadata?.onboardingCompleted)
+      if (onboardingCompleted) {
+        router.push('/dashboard')
+      } else {
+        router.push('/onboarding/level')
+      }
+    }
+  }, [isLoaded, user, router])
 
   const handleStartBuilding = async () => {
     try {
-      // Open Clerk sign-in modal
+      // Open Clerk sign-in modal - will redirect based on onboarding status after auth
       await signIn?.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/onboarding/level",
-        redirectUrlComplete: "/onboarding/level",
+        redirectUrl: "/dashboard",
+        redirectUrlComplete: "/dashboard",
       })
     } catch (error) {
       // If OAuth fails, redirect to sign-in page
       router.push("/sign-in")
     }
+  }
+
+  // Show loading state while checking auth
+  if (!isLoaded) {
+    return null
+  }
+
+  // If user is signed in, we'll redirect in useEffect, so return null
+  if (user) {
+    return null
   }
 
   return (

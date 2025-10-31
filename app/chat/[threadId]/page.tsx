@@ -7,6 +7,7 @@ import type { CodeEditorHandle } from '@/components/code-editor'
 import ChatField from '@/components/chat-field'
 import { useChatThread } from '@/hooks/use-chat-thread'
 import { splitMessageIntoBubbles } from '@/lib/message-splitter'
+import { useEditorWorkspaceSync } from '@/hooks/use-editor-workspace-sync'
 
 const CodeEditor = dynamic(() => import('@/components/code-editor'), { ssr: false })
 
@@ -15,6 +16,9 @@ export default function ThreadPage() {
   const { threadId } = params
   const { messages, isLoading, sendMessage, mode, tts } = useChatThread(threadId, 'alexTutor')
   const editorRef = useRef<CodeEditorHandle>(null)
+  
+  // Sync editor files with workspace
+  useEditorWorkspaceSync(threadId, true)
 
   // Convert messages to display format with bubbles
   const displayMessages = useMemo(() => {
@@ -38,7 +42,7 @@ export default function ThreadPage() {
 
   return (
     <div className="h-screen w-screen relative">
-      <CodeEditor ref={editorRef} className="h-full" />
+      <CodeEditor ref={editorRef} className="h-full" threadId={threadId} />
       <ChatField
         messages={displayMessages}
         onSendMessage={async (msg) => {

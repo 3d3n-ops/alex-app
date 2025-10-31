@@ -10,6 +10,12 @@ export default async function DashboardPage() {
     redirect("/sign-in")
   }
 
+  // Check if onboarding is completed, if not redirect to onboarding
+  const onboardingCompleted = Boolean(user?.publicMetadata?.onboardingCompleted)
+  if (!onboardingCompleted) {
+    redirect("/onboarding/level")
+  }
+
   const firstName = user?.firstName || "there"
 
   return <DashboardClient firstName={firstName} />

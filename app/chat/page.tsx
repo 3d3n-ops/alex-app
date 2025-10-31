@@ -6,6 +6,7 @@ import type { CodeEditorHandle } from '@/components/code-editor'
 import ChatField from '@/components/chat-field'
 import { useChatThread } from '@/hooks/use-chat-thread'
 import { splitMessageIntoBubbles } from '@/lib/message-splitter'
+import { useEditorWorkspaceSync } from '@/hooks/use-editor-workspace-sync'
 
 // Dynamically import CodeEditor to ensure it only loads on client side
 const CodeEditor = dynamic(() => import('@/components/code-editor'), {
@@ -19,7 +20,10 @@ const CodeEditor = dynamic(() => import('@/components/code-editor'), {
 
 export default function ChatPage() {
   const editorRef = useRef<CodeEditorHandle>(null)
-  const { messages, isLoading, sendMessage, mode, tts } = useChatThread(undefined, 'alexTutor')
+  const { messages, isLoading, sendMessage, mode, tts, threadId } = useChatThread(undefined, 'alexTutor')
+  
+  // Sync editor files with workspace
+  useEditorWorkspaceSync(threadId, true)
 
   // Convert messages to display format with bubbles
   const displayMessages = useMemo(() => {
@@ -47,6 +51,7 @@ export default function ChatPage() {
         ref={editorRef}
         className="h-full"
         initialLanguage="python"
+        threadId={threadId}
         onCodeChange={(code) => {
           // Handle code changes if needed
           console.log('Code changed:', code.length, 'characters')

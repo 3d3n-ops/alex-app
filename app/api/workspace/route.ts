@@ -10,21 +10,35 @@
  * The server cache is a temporary bridge - IndexedDB is the source of truth for persistence
  */
 
+import { auth } from '@clerk/nextjs/server'
+import { 
+  getThreadWorkspace,
+  readFileFromCache, 
+  writeFileToCache, 
+  deleteFileFromCache, 
+  listFilesFromCache 
+} from '@/lib/workspace-cache'
+
 export const runtime = 'nodejs'
 
-// In-memory cache for server-side tool access
-// This is populated from IndexedDB when threads load and serves as a bridge
-// for tools running server-side to access client-side IndexedDB data
-const workspaceCache = new Map<string, Map<string, string>>() // threadId -> (path -> content)
-
-function getThreadWorkspace(threadId: string): Map<string, string> {
-  if (!workspaceCache.has(threadId)) {
-    workspaceCache.set(threadId, new Map())
-  }
-  return workspaceCache.get(threadId)!
+// Re-export cache functions for backward compatibility (server-side only)
+export { 
+  getThreadWorkspace,
+  readFileFromCache, 
+  writeFileToCache, 
+  deleteFileFromCache, 
+  listFilesFromCache 
 }
 
 export async function GET(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   const url = new URL(req.url)
   const threadId = url.searchParams.get('threadId') || ''
   const path = url.searchParams.get('path') || ''
@@ -36,10 +50,19 @@ export async function GET(req: Request) {
     })
   }
   
-  const workspace = getThreadWorkspace(threadId)
-  const content = workspace.get(path)
+  const content = readFileFromCache(threadId, path)
   
   if (content === undefined) {
+    const workspace = getThreadWorkspace(threadId)
+    const availableFiles = Array.from(workspace.keys())
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+      console.log(`[Workspace API] File not found: ${path}`, {
+        threadId: threadId.substring(0, 8) + '...',
+        requestedPath: path,
+        availableFiles: availableFiles.slice(0, 10),
+        totalFiles: availableFiles.length
+      })
+    }
     return new Response(JSON.stringify({ error: 'File not found', content: null }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' }
@@ -52,6 +75,14 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   const body = await req.json().catch(() => ({}))
   const threadId = String(body.threadId || '')
   const path = String(body.path || '')
@@ -64,8 +95,15 @@ export async function PUT(req: Request) {
     })
   }
   
-  const workspace = getThreadWorkspace(threadId)
-  workspace.set(path, content)
+  writeFileToCache(threadId, path, content)
+  
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+    console.log(`[Workspace API] File written: ${path}`, {
+      threadId: threadId.substring(0, 8) + '...',
+      path,
+      contentLength: content.length
+    })
+  }
   
   return new Response(JSON.stringify({ success: true, path }), {
     headers: { 'Content-Type': 'application/json' }
@@ -73,6 +111,14 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   const url = new URL(req.url)
   const threadId = url.searchParams.get('threadId') || ''
   const path = url.searchParams.get('path') || ''
@@ -84,8 +130,7 @@ export async function DELETE(req: Request) {
     })
   }
   
-  const workspace = getThreadWorkspace(threadId)
-  workspace.delete(path)
+  deleteFileFromCache(threadId, path)
   
   return new Response(JSON.stringify({ success: true }), {
     headers: { 'Content-Type': 'application/json' }
@@ -93,6 +138,14 @@ export async function DELETE(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   // List files
   const body = await req.json().catch(() => ({}))
   const threadId = String(body.threadId || '')
@@ -105,13 +158,15 @@ export async function POST(req: Request) {
     })
   }
   
-  const workspace = getThreadWorkspace(threadId)
-  let files = Array.from(workspace.keys())
+  const files = listFilesFromCache(threadId, directory)
   
-  // Filter by directory if specified
-  if (directory !== '.' && directory !== '') {
-    const dirPath = directory.replace(/^\/+/, '').replace(/\/+$/, '') + '/'
-    files = files.filter(f => f.startsWith(dirPath))
+  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
+    console.log(`[Workspace API] listFiles request:`, {
+      threadId: threadId.substring(0, 8) + '...',
+      directory,
+      filesFound: files.length,
+      files: files.slice(0, 20) // Show first 20
+    })
   }
   
   return new Response(JSON.stringify({ files, count: files.length }), {

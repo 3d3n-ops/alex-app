@@ -7,6 +7,7 @@
 import { z } from 'zod'
 import { globFile, globFileSchema, grepFile, grepFileSchema, readFile, readFileSchema, listFiles, listFilesSchema, writeFile, writeFileSchema } from './fs-tools'
 import type { ORTool } from '@/lib/openrouter'
+import { logTool } from '@/lib/tool-logger'
 
 export type ToolExecutor = (args: unknown) => Promise<unknown>
 
@@ -91,41 +92,67 @@ const writeFileJsonSchema = {
 }
 
 export function buildTools(threadId?: string): ToolRegistry {
+	const wrapWithLogging = <T extends z.ZodTypeAny>(
+		toolName: string,
+		schema: T,
+		executor: (args: z.infer<T>) => Promise<unknown>
+	) => {
+		return async (args: unknown) => {
+			const startTime = Date.now()
+			let parsedArgs: z.infer<T>
+			let result: unknown
+			let error: string | undefined
+			
+			try {
+				parsedArgs = schema.parse(args)
+				result = await executor(parsedArgs)
+				const duration = Date.now() - startTime
+				logTool(toolName, parsedArgs, result, undefined, duration, threadId)
+				return result
+			} catch (e: any) {
+				error = e?.message || String(e)
+				const duration = Date.now() - startTime
+				logTool(toolName, args, undefined, error, duration, threadId)
+				throw e
+			}
+		}
+	}
+
 	return {
 		globFile: {
 			name: 'globFile',
 			description: 'List files matching a glob pattern relative to repo root',
 			jsonSchema: globFileJsonSchema,
 			zodSchema: globFileSchema,
-			execute: async (args: unknown) => globFile(globFileSchema.parse(args)),
+			execute: wrapWithLogging('globFile', globFileSchema, globFile),
 		},
 		grepFile: {
 			name: 'grepFile',
 			description: 'Search files for a string/regex, optionally scoped to a path',
 			jsonSchema: grepFileJsonSchema,
 			zodSchema: grepFileSchema,
-			execute: async (args: unknown) => grepFile(grepFileSchema.parse(args)),
+			execute: wrapWithLogging('grepFile', grepFileSchema, grepFile),
 		},
 		readFile: {
 			name: 'readFile',
 			description: 'Read the contents of a file from the workspace. Returns file content, size, and line count. If file is not found, provides suggestions for similar files.',
 			jsonSchema: readFileJsonSchema,
 			zodSchema: readFileSchema,
-			execute: async (args: unknown) => readFile(readFileSchema.parse(args), threadId),
+			execute: wrapWithLogging('readFile', readFileSchema, (args) => readFile(args, threadId)),
 		},
 		listFiles: {
 			name: 'listFiles',
 			description: 'List all files in the workspace directory. Use this to see what files are available before reading them. Can list files in a specific directory or recursively scan the entire workspace.',
 			jsonSchema: listFilesJsonSchema,
 			zodSchema: listFilesSchema,
-			execute: async (args: unknown) => listFiles(listFilesSchema.parse(args), threadId),
+			execute: wrapWithLogging('listFiles', listFilesSchema, (args) => listFiles(args, threadId)),
 		},
 		writeFile: {
 			name: 'writeFile',
 			description: 'Write content to a file in the workspace filesystem. This creates or overwrites a file that can then be read with readFile. Use this instead of editor.createFile if you need the file to be accessible via readFile.',
 			jsonSchema: writeFileJsonSchema,
 			zodSchema: writeFileSchema,
-			execute: async (args: unknown) => writeFile(writeFileSchema.parse(args), threadId),
+			execute: wrapWithLogging('writeFile', writeFileSchema, (args) => writeFile(args, threadId)),
 		},
 	}
 }
@@ -139,6 +166,67 @@ export function buildORToolsFromRegistry(reg: ToolRegistry): ORTool[] {
 			parameters: spec.jsonSchema,
 		},
 	}))
+}
+
+// Editor tools: server-side operations on thread-scoped CodeEditorDB
+// These are executed server-side, not returned as intents
+import { editorReadFile, editorReadFileSchema, editorListFiles, editorListFilesSchema } from './editor-tools'
+
+export function buildEditorTools(threadId?: string): ToolRegistry {
+	const wrapWithLogging = <T extends z.ZodTypeAny>(
+		toolName: string,
+		schema: T,
+		executor: (args: z.infer<T>) => Promise<unknown>
+	) => {
+		return async (args: unknown) => {
+			const startTime = Date.now()
+			let parsedArgs: z.infer<T>
+			let result: unknown
+			let error: string | undefined
+
+			try {
+				parsedArgs = schema.parse(args)
+				result = await executor(parsedArgs)
+				const duration = Date.now() - startTime
+				logTool(toolName, parsedArgs, result, undefined, duration, threadId)
+				return result
+			} catch (e: any) {
+				error = e?.message || String(e)
+				const duration = Date.now() - startTime
+				logTool(toolName, args, undefined, error, duration, threadId)
+				throw e
+			}
+		}
+	}
+
+	return {
+		editor_readFile: {
+			name: 'editor_readFile',
+			description: 'Read a file from the editor (thread-scoped CodeEditorDB). This is the PRIMARY way to read files created with editor_createFile. Files are scoped per chat thread.',
+			jsonSchema: {
+				type: 'object',
+				properties: {
+					path: { type: 'string', description: 'Path to the file (e.g., "/hello.py" or "hello.py")' },
+				},
+				required: ['path'],
+			},
+			zodSchema: editorReadFileSchema,
+			execute: wrapWithLogging('editor_readFile', editorReadFileSchema, (args) => editorReadFile(args, threadId)),
+		},
+		editor_listFiles: {
+			name: 'editor_listFiles',
+			description: 'List all files in the editor (thread-scoped CodeEditorDB). Use this to see what files exist in the current chat thread before reading them. Files are scoped per chat thread.',
+			jsonSchema: {
+				type: 'object',
+				properties: {
+					directory: { type: 'string', description: 'Optional directory to list (defaults to root "/")' },
+					recursive: { type: 'boolean', description: 'Whether to recursively list subdirectories', default: false },
+				},
+			},
+			zodSchema: editorListFilesSchema,
+			execute: wrapWithLogging('editor_listFiles', editorListFilesSchema, (args) => editorListFiles(args, threadId)),
+		},
+	}
 }
 
 // UI tools: intended for client execution only; server will return these tool_calls as intents
@@ -182,13 +270,13 @@ export function buildClientUITools(): ORTool[] {
 			type: 'function',
 			function: {
 				name: 'editor_createFile',
-				description: 'Create a new file in the editor/files db',
+				description: 'Create a new file in the editor (thread-scoped CodeEditorDB). This is the PRIMARY tool for creating code files. Files are automatically scoped to the current chat thread. Write complete, runnable code with proper syntax.',
 				parameters: {
 					type: 'object',
 					properties: {
-						name: { type: 'string' },
-						language: { type: 'string' },
-						content: { type: 'string' }
+						name: { type: 'string', description: 'File name (e.g., "hello.py", "main.js")' },
+						language: { type: 'string', description: 'Programming language (e.g., "python", "javascript")' },
+						content: { type: 'string', description: 'Complete file content with proper syntax' }
 					},
 					required: ['name', 'language']
 				}
