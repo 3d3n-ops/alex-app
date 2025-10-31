@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { Suspense, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import type { CodeEditorHandle } from '@/components/code-editor'
 import ChatField from '@/components/chat-field'
@@ -18,7 +18,7 @@ const CodeEditor = dynamic(() => import('@/components/code-editor'), {
   ),
 })
 
-export default function ChatPage() {
+function ChatPageContent() {
   const editorRef = useRef<CodeEditorHandle>(null)
   const { messages, isLoading, sendMessage, mode, tts, threadId } = useChatThread(undefined, 'alexTutor')
   
@@ -78,6 +78,18 @@ export default function ChatPage() {
         onToggleTTS={tts.setIsEnabled}
       />
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    }>
+      <ChatPageContent />
+    </Suspense>
   )
 }
 

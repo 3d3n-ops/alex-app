@@ -13,9 +13,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { autocompletion } from '@codemirror/autocomplete'
 import { searchKeymap } from '@codemirror/search'
 import { keymap } from '@codemirror/view'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
+import { SimpleTerminal } from '@/components/simple-terminal'
 import { db, type FileItem } from '@/lib/db'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,137 +71,13 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
     const [showRenameDialog, setShowRenameDialog] = useState(false)
     const [renameName, setRenameName] = useState('')
     const [renameTarget, setRenameTarget] = useState<FileItem | null>(null)
-    const terminalRef = useRef<HTMLDivElement>(null)
-    const terminalInstanceRef = useRef<Terminal | null>(null)
-    const fitAddonRef = useRef<FitAddon | null>(null)
-    const ptySessionRef = useRef<{ sessionId: string; token: string } | null>(null)
-    const ptyReaderAbortRef = useRef<AbortController | null>(null)
+    // SimpleTerminal handles its own refs, no need for terminal refs
+    const terminalOutputRef = useRef<string>('')
     const editorRef = useRef<any>(null)
     const browserRef = useRef<HTMLIFrameElement>(null)
 
-    // Initialize terminal when shown
-    useEffect(() => {
-      if (showTerminal && terminalRef.current && !terminalInstanceRef.current) {
-        const term = new Terminal({
-          theme: {
-            background: '#1a1816',
-            foreground: '#ffffff',
-            cursor: '#c9b59a',
-          },
-          fontSize: 14,
-          fontFamily: 'Space Mono, monospace',
-        })
-
-        const fitAddon = new FitAddon()
-        term.loadAddon(fitAddon)
-        fitAddonRef.current = fitAddon
-        terminalInstanceRef.current = term
-
-        term.open(terminalRef.current)
-        fitAddon.fit()
-
-        term.writeln('Welcome to Code Editor Terminal!')
-        term.writeln('Connecting shell...\r\n')
-
-        // Hook input → PTY
-        term.onData(async (data) => {
-          const sess = ptySessionRef.current
-          if (!sess) return
-          try {
-            await fetch('/api/pty/input', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, data })
-            })
-          } catch {
-            // ignore transient
-          }
-        })
-
-        // Handle window resize
-        const handleResize = () => {
-          if (fitAddonRef.current) {
-            fitAddonRef.current.fit()
-            // Notify PTY of new size
-            const sess = ptySessionRef.current
-            if (sess && terminalInstanceRef.current) {
-              const cols = terminalInstanceRef.current.cols
-              const rows = terminalInstanceRef.current.rows
-              fetch('/api/pty/resize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId: sess.sessionId, token: sess.token, cols, rows })
-              }).catch(() => {})
-            }
-          }
-        }
-        window.addEventListener('resize', handleResize)
-
-        // Establish PTY session and connect SSE stream
-        ;(async () => {
-          try {
-            const sessRes = await fetch('/api/pty/session', { method: 'POST' })
-            const { sessionId, token } = await sessRes.json()
-            ptySessionRef.current = { sessionId, token }
-
-            // Start SSE via fetch streaming POST
-            ptyReaderAbortRef.current?.abort()
-            const aborter = new AbortController()
-            ptyReaderAbortRef.current = aborter
-            const cols = terminalInstanceRef.current?.cols || 80
-            const rows = terminalInstanceRef.current?.rows || 24
-            const res = await fetch('/api/pty/connect', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionId, token, cols, rows }),
-              signal: aborter.signal
-            })
-            const reader = res.body?.getReader()
-            const decoder = new TextDecoder()
-            let buffer = ''
-            while (reader) {
-              const { done, value } = await reader.read()
-              if (done) break
-              buffer += decoder.decode(value, { stream: true })
-              const parts = buffer.split(/\n\n/)
-              buffer = parts.pop() || ''
-              for (const part of parts) {
-                const line = part.trim()
-                if (!line.startsWith('data:')) continue
-                const payload = line.slice(5).trim()
-                if (payload === '["DONE"]') continue
-                try {
-                  const evt = JSON.parse(payload)
-                  if (evt?.type === 'stdout' && typeof evt.data === 'string') {
-                    terminalInstanceRef.current?.write(evt.data)
-                  } else if (evt?.type === 'exit') {
-                    terminalInstanceRef.current?.writeln(`\r\n[process exited with code ${evt.code}]`)
-                  }
-                } catch {
-                  // ignore
-                }
-              }
-            }
-          } catch (err: any) {
-            terminalInstanceRef.current?.writeln(`\r\n[terminal error: ${String(err?.message || err)}]`)
-          }
-        })()
-
-        return () => {
-          window.removeEventListener('resize', handleResize)
-          ptyReaderAbortRef.current?.abort()
-        }
-      }
-    }, [showTerminal])
-
-    // Update terminal size when shown or resized
-    useEffect(() => {
-      if (showTerminal && fitAddonRef.current) {
-        setTimeout(() => {
-          fitAddonRef.current?.fit()
-        }, 100)
-      }
-    }, [showTerminal])
+    // Terminal is now handled by SimpleTerminal component
+    // No initialization needed
 
     // Update browser preview when code changes (for HTML files)
     useEffect(() => {
@@ -354,26 +228,37 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       },
       openTerminal: () => {
         setShowTerminal(true)
-        setTimeout(() => {
-          fitAddonRef.current?.fit()
-        }, 50)
       },
       writeToTerminal: (text: string) => {
+        // Store output for later display
+        terminalOutputRef.current += text
+        setTerminalOutput(prev => prev + text)
+        // Open terminal if not already open
         if (!showTerminal) {
           setShowTerminal(true)
-          setTimeout(() => {
-            terminalInstanceRef.current?.writeln(text)
-          }, 80)
-        } else {
-          terminalInstanceRef.current?.writeln(text)
         }
+        // Note: SimpleTerminal will show output when commands are executed
+        // This is mainly for programmatic output from Judge0 execution
       }
     }))
 
     // Execute code using Judge0 API
     const executeCode = async () => {
       setIsRunning(true)
-      const term = terminalInstanceRef.current
+      
+      // Clear previous output and ensure terminal is visible
+      setTerminalOutput('')
+      terminalOutputRef.current = ''
+      
+      if (!showTerminal) {
+        setShowTerminal(true)
+      }
+      
+      // Helper to append output (will be displayed in SimpleTerminal)
+      const appendOutput = (text: string) => {
+        setTerminalOutput(prev => prev + text)
+      }
+      
       try {
         // Save current file to workspace
         if (selectedFileId) {
@@ -382,7 +267,11 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
             await fetch('/api/workspace/file', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: file.path.replace(/^\//, ''), content: code })
+              body: JSON.stringify({ 
+                path: file.path.replace(/^\//, ''), 
+                content: code,
+                threadId: threadId || 'default'
+              })
             })
           }
         }
@@ -390,11 +279,11 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         // Get Judge0 language ID
         const languageConfig = languageConfigs[language]
         if (!languageConfig || !languageConfig.judge0Id) {
-          term?.writeln(`\r\n❌ Language "${language}" is not supported for code execution.\r\n`)
+          appendOutput(`\r\n❌ Language "${language}" is not supported for code execution.\r\n`)
           return
         }
 
-        term?.writeln(`\r\n⏳ Executing ${language} code...\r\n`)
+        appendOutput(`\r\n⏳ Executing ${language} code...\r\n`)
         
         // Submit to Judge0 API
         const response = await fetch('/api/execute', {
@@ -411,52 +300,52 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-          term?.writeln(`❌ Execution failed: ${error.error || error.message || 'Unknown error'}\r\n`)
+          appendOutput(`❌ Execution failed: ${error.error || error.message || 'Unknown error'}\r\n`)
           return
         }
 
         const result = await response.json()
 
         if (result.error) {
-          term?.writeln(`❌ ${result.error}\r\n`)
+          appendOutput(`❌ ${result.error}\r\n`)
           if (result.token) {
-            term?.writeln(`Token: ${result.token}\r\n`)
+            appendOutput(`Token: ${result.token}\r\n`)
           }
           return
         }
 
         // Display results
         if (result.compileOutput) {
-          term?.writeln(`📝 Compilation Output:\r\n${result.compileOutput}\r\n`)
+          appendOutput(`📝 Compilation Output:\r\n${result.compileOutput}\r\n`)
         }
 
         if (result.stderr) {
-          term?.writeln(`⚠️  Error Output:\r\n${result.stderr}\r\n`)
+          appendOutput(`⚠️  Error Output:\r\n${result.stderr}\r\n`)
         }
 
         if (result.stdout) {
-          term?.writeln(`✅ Output:\r\n${result.stdout}\r\n`)
+          appendOutput(`✅ Output:\r\n${result.stdout}\r\n`)
         }
 
         if (result.success) {
-          term?.writeln(`✓ Execution completed successfully`)
+          appendOutput(`✓ Execution completed successfully\r\n`)
           if (result.time) {
-            term?.writeln(`⏱️  Time: ${result.time}s`)
+            appendOutput(`⏱️  Time: ${result.time}s\r\n`)
           }
           if (result.memory) {
-            term?.writeln(`💾 Memory: ${(result.memory / 1024).toFixed(2)} KB`)
+            appendOutput(`💾 Memory: ${(result.memory / 1024).toFixed(2)} KB\r\n`)
           }
-          term?.writeln('')
+          appendOutput('\r\n')
         } else {
-          term?.writeln(`❌ Execution failed: ${result.status || 'Unknown error'}`)
+          appendOutput(`❌ Execution failed: ${result.status || 'Unknown error'}\r\n`)
           if (result.message) {
-            term?.writeln(`Message: ${result.message}`)
+            appendOutput(`Message: ${result.message}\r\n`)
           }
-          term?.writeln('')
+          appendOutput('\r\n')
         }
 
       } catch (e: any) {
-        term?.writeln(`❌ Error: ${String(e?.message || e)}\r\n`)
+        appendOutput(`❌ Error: ${String(e?.message || e)}\r\n`)
       } finally {
         setIsRunning(false)
       }
@@ -896,9 +785,22 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                   <div className="h-9 border-b border-border flex items-center px-3 bg-muted/30">
                     <TerminalIcon className="size-4 mr-2" />
                     <span className="text-xs font-medium">Terminal</span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="ml-auto h-6 w-6"
+                      onClick={() => setShowTerminal(false)}
+                      title="Close Terminal"
+                    >
+                      <X className="size-3" />
+                    </Button>
                   </div>
-                  <div className="flex-1 overflow-hidden p-2">
-                    <div ref={terminalRef} className="h-full w-full" />
+                  <div className="flex-1 overflow-hidden">
+                    <SimpleTerminal 
+                      onClose={() => setShowTerminal(false)}
+                      className="h-full w-full"
+                      initialOutput={terminalOutput}
+                    />
                   </div>
                 </div>
                 </ResizablePanel>

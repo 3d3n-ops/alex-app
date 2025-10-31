@@ -67,6 +67,14 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     }
     const id = await chatDb.messages.add(row)
     setMessages((prev) => [...prev, { ...row, id }])
+    
+    // If this is the first user message, update thread title
+    if (role === 'user') {
+      const { ensureThread } = await import('@/lib/chat-threads')
+      const title = content.length > 50 ? content.substring(0, 47) + '...' : content
+      await ensureThread(t, title)
+    }
+    
     return id
   }
 

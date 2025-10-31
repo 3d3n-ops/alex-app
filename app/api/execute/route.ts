@@ -80,25 +80,80 @@ export async function POST(req: Request) {
       submitHeaders['X-RapidAPI-Host'] = rapidApiHost
     }
 
-    const submitResponse = await fetch(`${judge0Url}/submissions?base64_encoded=false&wait=false`, {
+    // Determine the correct endpoint URL and format
+    // Judge0 CE via RapidAPI uses query parameters, not body params
+    const isRapidAPI = judge0Url.includes('rapidapi')
+    const submissionsUrl = isRapidAPI
+      ? `${judge0Url}/submissions?base64_encoded=false&wait=false`
+      : `${judge0Url}/submissions?base64_encoded=false&wait=false`
+
+    const submitResponse = await fetch(submissionsUrl, {
       method: 'POST',
       headers: submitHeaders,
       body: JSON.stringify(submission),
     })
 
     if (!submitResponse.ok) {
-      const errorText = await submitResponse.text().catch(() => 'Unknown error')
-      console.error('Judge0 submission error:', errorText)
-      return new Response(JSON.stringify({ 
-        error: 'Failed to submit code to Judge0',
-        details: errorText.substring(0, 500)
-      }), {
+      let errorText = ''
+      let errorJson: any = null
+      
+      try {
+        errorText = await submitResponse.text()
+        // Try to parse as JSON
+        errorJson = JSON.parse(errorText)
+      } catch {
+        // Not JSON, use as text
+      }
+      
+      console.error('Judge0 submission error:', {
         status: submitResponse.status,
+        statusText: submitResponse.statusText,
+        errorText: errorText.substring(0, 1000),
+        errorJson,
+        url: submissionsUrl,
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length || 0
+      })
+      
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to submit code to Judge0'
+      if (submitResponse.status === 401 || submitResponse.status === 403) {
+        errorMessage = 'Judge0 API authentication failed. Please check your JUDGE0_API_KEY in environment variables.'
+      } else if (submitResponse.status === 429) {
+        errorMessage = 'Judge0 API rate limit exceeded. Please try again later or upgrade your plan.'
+      } else if (errorText.includes('gateway') || errorText.includes('Gateway')) {
+        errorMessage = 'Judge0 API gateway error. This may be a temporary RapidAPI issue. Please try again in a moment.'
+      } else if (!apiKey && isRapidAPI) {
+        errorMessage = 'Judge0 API key is missing. Please set JUDGE0_API_KEY in your environment variables.'
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: errorMessage,
+        details: errorJson?.message || errorText.substring(0, 500),
+        status: submitResponse.status,
+        suggestion: !apiKey && isRapidAPI 
+          ? 'Make sure JUDGE0_API_KEY and JUDGE0_RAPIDAPI_HOST are set in .env.local'
+          : undefined
+      }), {
+        status: submitResponse.status >= 400 && submitResponse.status < 500 ? submitResponse.status : 500,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    const submitData: Judge0Response = await submitResponse.json()
+    let submitData: Judge0Response
+    try {
+      submitData = await submitResponse.json()
+    } catch (error) {
+      const responseText = await submitResponse.text().catch(() => '')
+      console.error('Failed to parse Judge0 response:', responseText)
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response from Judge0 API',
+        details: responseText.substring(0, 500)
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
     const token = submitData.token
 
     if (!token) {

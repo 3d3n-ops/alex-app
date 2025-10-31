@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useRef, useMemo } from 'react'
@@ -11,7 +12,7 @@ import { useEditorWorkspaceSync } from '@/hooks/use-editor-workspace-sync'
 
 const CodeEditor = dynamic(() => import('@/components/code-editor'), { ssr: false })
 
-export default function ThreadPage() {
+function ThreadPageContent() {
   const params = useParams<{ threadId: string }>()
   const { threadId } = params
   const { messages, isLoading, sendMessage, mode, tts } = useChatThread(threadId, 'alexTutor')
@@ -67,3 +68,14 @@ export default function ThreadPage() {
   )
 }
 
+export default function ThreadPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    }>
+      <ThreadPageContent />
+    </Suspense>
+  )
+}

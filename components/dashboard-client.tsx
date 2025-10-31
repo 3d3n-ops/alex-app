@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Menu, Send, MessageSquare, Settings, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { chatDb } from "@/lib/chat-db"
+import { getAllThreads, ensureThread, getFirstUserMessage } from "@/lib/chat-threads"
+import type { ChatThreadRow } from "@/lib/chat-db"
 
 interface DashboardClientProps {
   firstName: string
@@ -22,6 +24,23 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [chatThreads, setChatThreads] = useState<ChatThreadRow[]>([])
+
+  // Load chat threads on mount and when sidebar opens
+  useEffect(() => {
+    if (sidebarOpen) {
+      loadChatThreads()
+    }
+  }, [sidebarOpen])
+
+  const loadChatThreads = async () => {
+    try {
+      const threads = await getAllThreads()
+      setChatThreads(threads)
+    } catch (error) {
+      console.error('Failed to load chat threads:', error)
+    }
+  }
 
   // Update time every second
   useEffect(() => {
@@ -52,7 +71,13 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
     try {
       const res = await fetch('/api/thread', { method: 'POST' })
       const { id, sig } = await res.json()
+      
+      // Save user message
       await chatDb.messages.add({ threadId: id, role: 'user', content: message.trim(), createdAt: Date.now() })
+
+      // Create thread with first message as title
+      const threadTitle = message.trim().length > 50 ? message.trim().substring(0, 47) + '...' : message.trim()
+      await ensureThread(id, threadTitle)
 
       // Persist attachments in Dexie
       const toBase64 = (f: File) => new Promise<string>((resolve, reject) => {
@@ -78,6 +103,11 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleThreadClick = (threadId: string) => {
+    setSidebarOpen(false)
+    router.push(`/chat/${threadId}`)
   }
 
   return (
@@ -107,10 +137,23 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
               <MessageSquare className="h-4 w-4" />
               <span>Chat History</span>
             </div>
-            <div className="space-y-2">
-              <div className="text-white/40 font-mono text-sm p-2 hover:bg-white/5 rounded cursor-pointer">
-                No chats yet
-              </div>
+            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+              {chatThreads.length === 0 ? (
+                <div className="text-white/40 font-mono text-sm p-2 hover:bg-white/5 rounded cursor-pointer">
+                  No chats yet
+                </div>
+              ) : (
+                chatThreads.map((thread) => (
+                  <div
+                    key={thread.threadId}
+                    onClick={() => handleThreadClick(thread.threadId)}
+                    className="text-white/80 font-mono text-sm p-2 hover:bg-white/10 rounded cursor-pointer transition-colors truncate"
+                    title={thread.title}
+                  >
+                    {thread.title}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

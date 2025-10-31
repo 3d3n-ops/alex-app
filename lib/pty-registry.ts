@@ -1,3 +1,7 @@
+// PTY code commented out - node-pty doesn't work in Next.js production builds
+// TODO: Re-enable when migrating to self-hosted solution or alternative
+
+/*
 import type { IPty } from 'node-pty'
 // Defer requiring node-pty to runtime to avoid bundling/edge issues
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -36,6 +40,24 @@ export function resizePty(sessionId: string, token: string, cols: number, rows: 
   const rec = idToPty.get(sessionId)
   if (!rec) throw new Error('PTY not found')
   rec.pty.resize(cols, rows)
+}
+*/
+
+// Stub implementations to prevent import errors
+export function hasPty(_sessionId: string) {
+  return false
+}
+
+export function spawnPty(_sessionId: string, _token: string, _cwd: string, _cols = 80, _rows = 24) {
+  throw new Error('PTY is disabled. Using SimpleTerminal instead.')
+}
+
+export function writePty(_sessionId: string, _token: string, _data: string) {
+  throw new Error('PTY is disabled. Using SimpleTerminal instead.')
+}
+
+export function resizePty(_sessionId: string, _token: string, _cols: number, _rows: number) {
+  throw new Error('PTY is disabled. Using SimpleTerminal instead.')
 }
 
 

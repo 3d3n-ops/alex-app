@@ -28,7 +28,7 @@ export async function writeFileInWorkspace(relPath: string, content: string, thr
   // Log the write for debugging
   if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
     console.log(`[Workspace] File written to cache: ${relPath}`, {
-      threadId: threadId.substring(0, 8) + '...',
+      threadId: threadId && typeof threadId === 'string' ? (threadId.substring(0, 8) + '...') : threadId,
       path: relPath,
       contentLength: content.length
     })
