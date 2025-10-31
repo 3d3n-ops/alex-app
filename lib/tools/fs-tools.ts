@@ -4,6 +4,7 @@ import path from 'node:path'
 import { z } from 'zod'
 
 const ROOT = process.cwd()
+const WORKSPACE_ROOT = path.join(ROOT, '.workspace')
 
 export const globFileSchema = z
 	.object({
@@ -65,5 +66,143 @@ export async function grepFile(params: z.infer<typeof grepFileSchema>) {
 		}
 	}
 	return results
+}
+
+export const readFileSchema = z.object({
+	path: z.string().min(1).describe('Relative path to the file from workspace root (e.g., "main.py" or "src/utils.ts"). Do not include leading slash.')
+})
+
+export async function readFile(params: z.infer<typeof readFileSchema>, threadId?: string) {
+	if (!threadId) {
+		return {
+			path: params.path,
+			error: 'Thread ID is required. Workspace files are scoped per chat thread.',
+			content: null
+		}
+	}
+	
+	const { readFileInWorkspace, listFilesInWorkspace } = await import('@/lib/workspace')
+	try {
+		const content = await readFileInWorkspace(params.path, threadId)
+		return { 
+			path: params.path, 
+			content,
+			size: content.length,
+			lines: content.split(/\r?\n/).length
+		}
+	} catch (error: any) {
+		// Try to suggest similar files
+		let suggestions: string[] = []
+		try {
+			const allFiles = await listFilesInWorkspace(threadId)
+			const requestedName = path.basename(params.path).toLowerCase()
+			
+			// Find files with similar names
+			suggestions = allFiles
+				.filter(f => {
+					const fileName = path.basename(f).toLowerCase()
+					return fileName.includes(requestedName) || requestedName.includes(fileName)
+				})
+				.slice(0, 5)
+			
+			// If no similar names, just show recent files
+			if (suggestions.length === 0) {
+				suggestions = allFiles.slice(0, 10)
+			}
+		} catch {
+			// Ignore errors in suggestion gathering
+		}
+		
+		return { 
+			path: params.path, 
+			error: error.message || 'File not found or could not be read',
+			content: null,
+			suggestions: suggestions.length > 0 ? suggestions : undefined,
+			hint: suggestions.length > 0 
+				? `Did you mean one of these files? Use listFiles() to see all files.`
+				: 'Use listFiles() to see available files in the workspace.'
+		}
+	}
+}
+
+export const listFilesSchema = z.object({
+	directory: z.string().optional().describe('Directory to list (relative to workspace root). Empty string or "." for root.'),
+	recursive: z.boolean().optional().default(false).describe('Whether to recursively list subdirectories'),
+	maxDepth: z.number().int().min(1).max(10).optional().describe('Maximum depth for recursive listing')
+})
+
+export async function listFiles(params: z.infer<typeof listFilesSchema>, threadId?: string) {
+	if (!threadId) {
+		return {
+			directory: params.directory || '.',
+			error: 'Thread ID is required. Workspace files are scoped per chat thread.',
+			files: [],
+			count: 0
+		}
+	}
+	
+	const { listFilesInWorkspace } = await import('@/lib/workspace')
+	const { directory = '.', recursive = false, maxDepth = 5 } = params
+	
+	try {
+		const allFiles = await listFilesInWorkspace(threadId, recursive ? undefined : directory)
+		
+		if (!recursive && directory !== '.' && directory !== '') {
+			// Filter to show only files in the specified directory
+			const dirPath = directory.replace(/^\/+/, '').replace(/\/+$/, '')
+			const dirPrefix = dirPath ? `${dirPath}/` : ''
+			return {
+				directory: directory || '.',
+				files: allFiles
+					.filter(f => f.startsWith(dirPrefix) && !f.substring(dirPrefix.length).includes('/'))
+					.map(f => f.substring(dirPrefix.length || 0)),
+				count: allFiles.filter(f => f.startsWith(dirPrefix) && !f.substring(dirPrefix.length).includes('/')).length
+			}
+		}
+		
+		return {
+			directory: directory || '.',
+			files: allFiles,
+			count: allFiles.length
+		}
+	} catch (error: any) {
+		return {
+			directory: directory || '.',
+			error: error.message || 'Failed to list files',
+			files: [],
+			count: 0
+		}
+	}
+}
+
+export const writeFileSchema = z.object({
+	path: z.string().min(1).describe('Relative path to the file from workspace root (e.g., "main.py" or "src/utils.ts"). Do not include leading slash.'),
+	content: z.string().describe('Content to write to the file')
+})
+
+export async function writeFile(params: z.infer<typeof writeFileSchema>, threadId?: string) {
+	if (!threadId) {
+		return {
+			path: params.path,
+			success: false,
+			error: 'Thread ID is required. Workspace files are scoped per chat thread.'
+		}
+	}
+	
+	const { writeFileInWorkspace } = await import('@/lib/workspace')
+	try {
+		await writeFileInWorkspace(params.path, params.content, threadId)
+		return {
+			path: params.path,
+			success: true,
+			message: 'File written successfully'
+		}
+	} catch (error: any) {
+		return {
+			path: params.path,
+			success: false,
+			error: error.message || 'Failed to write file'
+		}
+	}
 }
 

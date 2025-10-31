@@ -5,7 +5,7 @@
 // import { webSearch, webSearchSchema } from './web-search'
 
 import { z } from 'zod'
-import { globFile, globFileSchema, grepFile, grepFileSchema } from './fs-tools'
+import { globFile, globFileSchema, grepFile, grepFileSchema, readFile, readFileSchema, listFiles, listFilesSchema, writeFile, writeFileSchema } from './fs-tools'
 import type { ORTool } from '@/lib/openrouter'
 
 export type ToolExecutor = (args: unknown) => Promise<unknown>
@@ -44,7 +44,53 @@ const grepFileJsonSchema = {
 	required: ['pattern'],
 }
 
-export function buildTools(): ToolRegistry {
+const readFileJsonSchema = {
+	type: 'object',
+	properties: {
+		path: { 
+			type: 'string', 
+			description: 'Relative path to the file from workspace root (e.g., "main.py" or "src/utils.ts"). Do not include leading slash.'
+		}
+	},
+	required: ['path'],
+}
+
+const listFilesJsonSchema = {
+	type: 'object',
+	properties: {
+		directory: {
+			type: 'string',
+			description: 'Directory to list (relative to workspace root). Empty string or "." for root.'
+		},
+		recursive: {
+			type: 'boolean',
+			description: 'Whether to recursively list subdirectories'
+		},
+		maxDepth: {
+			type: 'integer',
+			minimum: 1,
+			maximum: 10,
+			description: 'Maximum depth for recursive listing'
+		}
+	},
+}
+
+const writeFileJsonSchema = {
+	type: 'object',
+	properties: {
+		path: {
+			type: 'string',
+			description: 'Relative path to the file from workspace root (e.g., "main.py" or "src/utils.ts"). Do not include leading slash.'
+		},
+		content: {
+			type: 'string',
+			description: 'Content to write to the file'
+		}
+	},
+	required: ['path', 'content'],
+}
+
+export function buildTools(threadId?: string): ToolRegistry {
 	return {
 		globFile: {
 			name: 'globFile',
@@ -59,6 +105,27 @@ export function buildTools(): ToolRegistry {
 			jsonSchema: grepFileJsonSchema,
 			zodSchema: grepFileSchema,
 			execute: async (args: unknown) => grepFile(grepFileSchema.parse(args)),
+		},
+		readFile: {
+			name: 'readFile',
+			description: 'Read the contents of a file from the workspace. Returns file content, size, and line count. If file is not found, provides suggestions for similar files.',
+			jsonSchema: readFileJsonSchema,
+			zodSchema: readFileSchema,
+			execute: async (args: unknown) => readFile(readFileSchema.parse(args), threadId),
+		},
+		listFiles: {
+			name: 'listFiles',
+			description: 'List all files in the workspace directory. Use this to see what files are available before reading them. Can list files in a specific directory or recursively scan the entire workspace.',
+			jsonSchema: listFilesJsonSchema,
+			zodSchema: listFilesSchema,
+			execute: async (args: unknown) => listFiles(listFilesSchema.parse(args), threadId),
+		},
+		writeFile: {
+			name: 'writeFile',
+			description: 'Write content to a file in the workspace filesystem. This creates or overwrites a file that can then be read with readFile. Use this instead of editor.createFile if you need the file to be accessible via readFile.',
+			jsonSchema: writeFileJsonSchema,
+			zodSchema: writeFileSchema,
+			execute: async (args: unknown) => writeFile(writeFileSchema.parse(args), threadId),
 		},
 	}
 }
@@ -124,26 +191,6 @@ export function buildClientUITools(): ORTool[] {
 						content: { type: 'string' }
 					},
 					required: ['name', 'language']
-				}
-			}
-		},
-		{
-			type: 'function',
-			function: {
-				name: 'editor_runCode',
-				description: 'Run the current file in the editor terminal',
-				parameters: { type: 'object', properties: {}, additionalProperties: false }
-			}
-		},
-		{
-			type: 'function',
-			function: {
-				name: 'terminal_write',
-				description: 'Open terminal if needed and write a line of output',
-				parameters: {
-					type: 'object',
-					properties: { text: { type: 'string' } },
-					required: ['text']
 				}
 			}
 		}

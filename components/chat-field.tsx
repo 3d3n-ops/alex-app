@@ -4,13 +4,13 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User, Volume2, VolumeX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
-  content: string
+  content: string | string[] // Can be single string or array of bubbles
   timestamp: Date
 }
 
@@ -19,6 +19,8 @@ interface ChatFieldProps {
   onSendMessage?: (message: string) => void
   messages?: ChatMessage[]
   isLoading?: boolean
+  ttsEnabled?: boolean
+  onToggleTTS?: (enabled: boolean) => void
 }
 
 export default function ChatField({
@@ -26,6 +28,8 @@ export default function ChatField({
   onSendMessage,
   messages = [],
   isLoading = false,
+  ttsEnabled = false,
+  onToggleTTS,
 }: ChatFieldProps) {
   const [inputValue, setInputValue] = useState('')
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -160,31 +164,44 @@ export default function ChatField({
                 </div>
               </div>
             ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    'flex gap-3',
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {/* Assistant message (no bot icon, keep subtle bubble) */}
-                  {message.role === 'assistant' && (
-                    <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%]">
-                      <p className="text-sm whitespace-pre-wrap break-words">
+              messages.map((message) => {
+                // Normalize content to array for assistant messages with multiple bubbles
+                const contentBubbles = Array.isArray(message.content) 
+                  ? message.content 
+                  : [message.content]
+                
+                // User messages always show as single bubble
+                if (message.role === 'user') {
+                  return (
+                    <div
+                      key={message.id}
+                      className={cn('flex gap-3 justify-end')}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words text-right max-w-[80%]">
                         {message.content}
                       </p>
                     </div>
-                  )}
-
-                  {/* User message (text only, no bubble or avatar) */}
-                  {message.role === 'user' && (
-                    <p className="text-sm whitespace-pre-wrap break-words text-right max-w-[80%]">
-                      {message.content}
-                    </p>
-                  )}
-                </div>
-              ))
+                  )
+                }
+                
+                // Assistant messages can have multiple bubbles
+                return (
+                  <div key={message.id} className="flex flex-col gap-2">
+                    {contentBubbles.map((bubble, idx) => (
+                      <div
+                        key={`${message.id}-${idx}`}
+                        className={cn('flex gap-3 justify-start')}
+                      >
+                        <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%]">
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {bubble}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })
             )}
             {isLoading && (
               <div className="flex gap-3 justify-start">
@@ -213,6 +230,22 @@ export default function ChatField({
             disabled={isLoading}
             className="flex-1 bg-background/50 border-border/50 focus:bg-background/80"
           />
+          {onToggleTTS && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => onToggleTTS(!ttsEnabled)}
+              className="shrink-0"
+              title={ttsEnabled ? "Disable voice" : "Enable voice"}
+            >
+              {ttsEnabled ? (
+                <Volume2 className="size-4" />
+              ) : (
+                <VolumeX className="size-4" />
+              )}
+            </Button>
+          )}
           <Button
             type="submit"
             size="icon"

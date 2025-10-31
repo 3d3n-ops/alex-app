@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { chatDb, type ChatMessageRow } from '@/lib/chat-db'
+import { splitMessageIntoBubbles } from '@/lib/message-splitter'
+import type { AgentId } from '@/lib/agents'
+import { useTTS } from './use-tts'
+import { useWorkspaceSync } from './use-workspace-sync'
 
 export type AgentMode = 'alexTutor' | 'alexExplore'
 
@@ -14,6 +18,16 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
   const [messages, setMessages] = useState<ChatMessageRow[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
+  
+  // TTS support
+  const tts = useTTS({
+    voice: 'alloy',
+    speed: mode === 'alexTutor' ? 1.0 : 1.1, // Slightly faster for Explore mode
+    model: 'tts-1',
+  })
+  
+  // Sync workspace IndexedDB to server cache
+  useWorkspaceSync(threadId)
 
   // Load existing thread messages
   useEffect(() => {
@@ -64,6 +78,7 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
         body: JSON.stringify({
           agent: mode,
           clientIntents: true,
+          threadId: tid, // Pass threadId to chat API for workspace scoping
           messages: messages
             .concat([{ threadId: tid, role: 'user', content: text, createdAt: Date.now() }])
             .map(m => ({ role: m.role, content: m.content }))
@@ -96,8 +111,17 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
         }
       }
       
+      // Split message into bubbles based on agent mode
+      const bubbles = splitMessageIntoBubbles(assistantContent, mode)
+      // Store the original content but we'll use bubbles for display
       const savedId = await append('assistant', assistantContent, tid)
-      return { toolIntents, assistantMessageId: savedId }
+      
+      // Trigger TTS for the assistant response
+      if (assistantContent && tts.isEnabled) {
+        tts.speak(assistantContent, false)
+      }
+      
+      return { toolIntents, assistantMessageId: savedId, bubbles }
     } finally {
       setIsLoading(false)
     }
@@ -109,7 +133,8 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     setMode,
     messages,
     isLoading,
-    sendMessage
+    sendMessage,
+    tts,
   }
 }
 
