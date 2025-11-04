@@ -59,6 +59,21 @@
 				"Link to language spec for async/await details",
 				"Show testing library best practices"
 			]
+		},
+		"editor_spotlight": {
+			"description": "Highlight specific lines of code in the editor with a visual halo effect and sound. Use this to draw the student's attention to important code for teaching or correction.",
+			"pedagogy": "Help students focus on specific code sections. Use after explaining concepts or when pointing out errors that need correction.",
+			"when_to_use": [
+				"Highlighting code that demonstrates a concept you just explained",
+				"Pointing out lines that contain errors or need correction",
+				"Drawing attention to particularly important or tricky code",
+				"Marking code that the student should examine or modify"
+			],
+			"examples": [
+				"Spotlight line 5 after explaining how a variable is used there",
+				"Highlight lines 10-15 where the student has a syntax error",
+				"Draw attention to the function definition on line 20"
+			]
 		}
 	}
 }

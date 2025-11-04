@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { Send, Bot, User, Volume2, VolumeX } from 'lucide-react'
+import { Send, Bot, User, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ChatMessage {
@@ -36,6 +36,26 @@ export default function ChatField({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Default collapsed size (current size)
+  const DEFAULT_WIDTH = 448 // 28rem
+  const DEFAULT_HEIGHT = 320 // h-80
+  
+  // Resizable size state
+  const [size, setSize] = useState<{ width: number; height: number }>({
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
+  })
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const lastExpandedSize = useRef<{ width: number; height: number } | null>(null)
+  const resizeState = useRef<{ resizing: boolean; startX: number; startY: number; startWidth: number; startHeight: number }>({
+    resizing: false,
+    startX: 0,
+    startY: 0,
+    startWidth: 0,
+    startHeight: 0,
+  })
+
   // Draggable position + visibility
   const [isOpen, setIsOpen] = useState(true)
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
@@ -53,17 +73,15 @@ export default function ChatField({
   // Initialize default position (bottom-left-ish by design, can be moved)
   useEffect(() => {
     const handle = () => {
-      const width = 448 // ~28rem default width
-      const height = 320 // ~h-80
       const margin = 24
-      const left = Math.max(margin, Math.round(window.innerWidth / 2 - width / 2))
-      const top = Math.max(margin, window.innerHeight - height - margin)
+      const left = Math.max(margin, Math.round(window.innerWidth / 2 - size.width / 2))
+      const top = Math.max(margin, window.innerHeight - size.height - margin)
       setPosition({ top, left })
     }
     handle()
     window.addEventListener('resize', handle)
     return () => window.removeEventListener('resize', handle)
-  }, [])
+  }, [size.width, size.height])
 
   // Keyboard shortcut: Ctrl/Cmd + K to toggle visibility
   useEffect(() => {
@@ -79,7 +97,7 @@ export default function ChatField({
 
   // Drag handlers
   const onDragStart = (e: React.MouseEvent) => {
-    if (!containerRef.current) return
+    if (!containerRef.current || resizeState.current.resizing) return
     dragState.current.dragging = true
     const rect = containerRef.current.getBoundingClientRect()
     dragState.current.offsetX = e.clientX - rect.left
@@ -110,6 +128,88 @@ export default function ChatField({
     window.removeEventListener('mouseup', onDragEnd)
   }
 
+  // Resize handlers
+  const onResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!containerRef.current) return
+    resizeState.current.resizing = true
+    setIsResizing(true)
+    resizeState.current.startX = e.clientX
+    resizeState.current.startY = e.clientY
+    resizeState.current.startWidth = size.width
+    resizeState.current.startHeight = size.height
+    window.addEventListener('mousemove', onResize)
+    window.addEventListener('mouseup', onResizeEnd)
+  }
+
+  const onResize = (e: MouseEvent) => {
+    if (!resizeState.current.resizing) return
+    const margin = 8
+    const minWidth = DEFAULT_WIDTH
+    const minHeight = 200
+    const maxWidth = window.innerWidth - margin * 2
+    const maxHeight = window.innerHeight - margin * 2
+    
+    const deltaX = e.clientX - resizeState.current.startX
+    const deltaY = e.clientY - resizeState.current.startY
+    
+    const newWidth = Math.min(
+      Math.max(minWidth, resizeState.current.startWidth + deltaX),
+      maxWidth
+    )
+    const newHeight = Math.min(
+      Math.max(minHeight, resizeState.current.startHeight + deltaY),
+      maxHeight
+    )
+    
+    setSize({ width: newWidth, height: newHeight })
+    
+    // Adjust position to keep within bounds
+    const newLeft = Math.min(
+      position.left,
+      window.innerWidth - newWidth - margin
+    )
+    const newTop = Math.min(
+      position.top,
+      window.innerHeight - newHeight - margin
+    )
+    setPosition({ top: Math.max(margin, newTop), left: Math.max(margin, newLeft) })
+  }
+
+  const onResizeEnd = () => {
+    resizeState.current.resizing = false
+    setIsResizing(false)
+    // Save the expanded size if it's larger than default
+    if (size.width > DEFAULT_WIDTH || size.height > DEFAULT_HEIGHT) {
+      lastExpandedSize.current = { ...size }
+      setIsExpanded(true)
+    }
+    window.removeEventListener('mousemove', onResize)
+    window.removeEventListener('mouseup', onResizeEnd)
+  }
+
+  // Toggle expand/collapse
+  const toggleExpand = () => {
+    if (isExpanded) {
+      // Collapse to default size
+      // Save current size if it's expanded
+      if (size.width > DEFAULT_WIDTH || size.height > DEFAULT_HEIGHT) {
+        lastExpandedSize.current = { ...size }
+      }
+      setSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
+      setIsExpanded(false)
+    } else {
+      // Expand to a larger size (or restore previous expanded size)
+      const targetSize = lastExpandedSize.current || {
+        width: DEFAULT_WIDTH * 1.5,
+        height: DEFAULT_HEIGHT * 1.5,
+      }
+      setSize(targetSize)
+      setIsExpanded(true)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputValue.trim() && !isLoading) {
@@ -129,8 +229,8 @@ export default function ChatField({
     <div
       ref={containerRef}
       className={cn(
-        'fixed w-[28rem] max-w-[90vw] h-80 rounded-lg',
-        'transition-all duration-200 ease-out',
+        'fixed rounded-lg',
+        !isResizing && 'transition-all duration-200 ease-out',
         isOpen
           ? 'opacity-100 pointer-events-auto translate-y-0 scale-100'
           : 'opacity-0 pointer-events-none translate-y-2 scale-[0.98]',
@@ -143,15 +243,38 @@ export default function ChatField({
         boxShadow: '0 0 20px rgba(201, 181, 154, 0.15), 0 0 40px rgba(201, 181, 154, 0.08)',
         top: position.top,
         left: position.left,
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+        maxWidth: '90vw',
+        maxHeight: '90vh',
       }}
     >
-      {/* Drag handle */}
-      <div
-        onMouseDown={onDragStart}
-        className="h-3 cursor-move bg-transparent flex items-center justify-center select-none"
-        title="Drag to move (toggle with Ctrl/Cmd + K)"
-      >
-        <div className="w-10 h-1 rounded-full bg-foreground/20" />
+      {/* Drag handle with expand/collapse button */}
+      <div className="h-3 cursor-move bg-transparent flex items-center justify-between px-2 select-none">
+        <div 
+          onMouseDown={onDragStart}
+          className="flex-1 flex items-center justify-center h-full"
+          title="Drag to move (toggle with Ctrl/Cmd + K)"
+        >
+          <div className="w-10 h-1 rounded-full bg-foreground/20" />
+        </div>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleExpand()
+          }}
+          className="h-6 w-6 shrink-0 opacity-60 hover:opacity-100"
+          title={isExpanded ? "Collapse to default size" : "Expand"}
+        >
+          {isExpanded ? (
+            <Minimize2 className="size-3" />
+          ) : (
+            <Maximize2 className="size-3" />
+          )}
+        </Button>
       </div>
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden bg-muted/20">
@@ -255,6 +378,19 @@ export default function ChatField({
             <Send className="size-4" />
           </Button>
         </form>
+      </div>
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={onResizeStart}
+        className={cn(
+          'absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize',
+          'bg-transparent hover:bg-border/20 transition-colors',
+          'flex items-end justify-end p-1'
+        )}
+        title="Drag to resize"
+      >
+        <div className="w-3 h-3 border-r-2 border-b-2 border-foreground/30 rounded-sm" />
       </div>
     </div>
   )

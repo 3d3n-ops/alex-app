@@ -80,6 +80,19 @@
 				"Prefer primary sources and stable APIs",
 				"Summarize results; avoid link-dumps"
 			]
+		},
+		"editor_spotlight": {
+			"description": "Highlight specific lines of code in the editor with a visual halo effect and sound. Use this to draw attention to important code sections.",
+			"when_to_use": [
+				"Pointing out code that needs attention or correction",
+				"Highlighting code that demonstrates a concept",
+				"Drawing focus to specific lines during explanations"
+			],
+			"examples": [
+				"Spotlight line 5 where the error occurs",
+				"Highlight lines 10-15 to show the problematic code block",
+				"Draw attention to the function definition"
+			]
 		}
 	}
 }

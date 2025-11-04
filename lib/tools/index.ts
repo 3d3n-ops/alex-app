@@ -281,6 +281,33 @@ export function buildClientUITools(): ORTool[] {
 					required: ['name', 'language']
 				}
 			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'editor_spotlight',
+				description: 'Highlight specific lines of code in the editor with a visual halo effect and play a sound. Use this when you want to draw the student\'s attention to specific code for teaching or correction purposes.',
+				parameters: {
+					type: 'object',
+					properties: {
+						lineStart: { 
+							type: 'integer', 
+							description: 'Starting line number (1-based) to highlight',
+							minimum: 1
+						},
+						lineEnd: { 
+							type: 'integer', 
+							description: 'Ending line number (1-based) to highlight. If omitted, only lineStart is highlighted.',
+							minimum: 1
+						},
+						message: {
+							type: 'string',
+							description: 'Optional message to display with the highlight (for context or explanation)'
+						}
+					},
+					required: ['lineStart']
+				}
+			}
 		}
 	]
 }

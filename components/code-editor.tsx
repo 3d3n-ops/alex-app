@@ -13,7 +13,8 @@ import { markdown } from '@codemirror/lang-markdown'
 import { html } from '@codemirror/lang-html'
 import { autocompletion } from '@codemirror/autocomplete'
 import { searchKeymap } from '@codemirror/search'
-import { keymap } from '@codemirror/view'
+import { keymap, Decoration, ViewPlugin, EditorView, WidgetType } from '@codemirror/view'
+import { StateField, StateEffect } from '@codemirror/state'
 import { SimpleTerminal } from '@/components/simple-terminal'
 import { db, type FileItem } from '@/lib/db'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,108 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { File, FileCode, Folder, FolderOpen, Plus, Trash2, Play, Save, X, Terminal as TerminalIcon, Globe } from 'lucide-react'
 import { getLanguageIcon, detectLanguageFromFileName } from '@/lib/language-icons'
 import { cn } from '@/lib/utils'
+
+// Helper function to play spotlight sound
+const playSpotlightSound = () => {
+  try {
+    // Play bell ring MP3 from public folder
+    const audio = new Audio('/bell-ring-390294.mp3')
+    audio.volume = 0.5 // Set volume to 50%
+    audio.play().catch((e) => {
+      // Silently fail if audio cannot be played (e.g., user interaction required)
+      console.debug('Spotlight sound not available:', e)
+    })
+  } catch (e) {
+    // Fallback: silently fail if Audio API is not available
+    console.debug('Spotlight sound not available:', e)
+  }
+}
+
+// StateEffect for updating spotlight
+const setSpotlightEffect = StateEffect.define<{ start: number; end: number } | null>()
+
+// CodeMirror extension for spotlight highlighting
+const createSpotlightExtension = () => {
+  // Create text-based decorations with halo effect
+  const highlightMark = Decoration.mark({
+    attributes: { class: 'cm-spotlight-text' },
+    class: 'cm-spotlight-text'
+  })
+  
+  const spotlightState = StateField.define<{ start: number; end: number } | null>({
+    create() {
+      return null
+    },
+    update(value, tr) {
+      for (const effect of tr.effects) {
+        if (effect.is(setSpotlightEffect)) {
+          return effect.value
+        }
+      }
+      // Keep current value even if document changes
+      return value
+    }
+  })
+  
+  const spotlightDecoration = StateField.define({
+    create(state) {
+      const lines = state.field(spotlightState)
+      if (!lines) return Decoration.none
+      
+      const decorations: any[] = []
+      const doc = state.doc
+      const startLine = Math.max(1, lines.start)
+      const endLine = Math.min(doc.lines, lines.end)
+      
+      try {
+        // Get the start and end positions of the text block
+        const startPos = doc.line(startLine).from
+        const endPos = doc.line(endLine).to
+        decorations.push(highlightMark.range(startPos, endPos))
+      } catch {
+        // Skip if lines don't exist
+      }
+      
+      return Decoration.set(decorations)
+    },
+    update(value, tr) {
+      const lines = tr.state.field(spotlightState)
+      if (!lines) {
+        // If no spotlight, clear decorations
+        return Decoration.none
+      }
+      
+      // Always recalculate decorations on any transaction (including document changes)
+      // This ensures decorations persist and update correctly when code is edited
+      const decorations: any[] = []
+      const doc = tr.state.doc
+      const startLine = Math.max(1, Math.min(lines.start, doc.lines))
+      const endLine = Math.min(doc.lines, lines.end)
+      
+      // Only update if we have valid lines
+      if (startLine > 0 && startLine <= endLine && endLine <= doc.lines) {
+        try {
+          // Get the start and end positions of the text block
+          const startPos = doc.line(startLine).from
+          const endPos = doc.line(endLine).to
+          if (startPos < endPos) {
+            decorations.push(highlightMark.range(startPos, endPos))
+          }
+        } catch {
+          // Skip if lines don't exist
+        }
+      }
+      
+      return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none
+    },
+    provide: f => EditorView.decorations.from(f)
+  })
+  
+  return [spotlightState, spotlightDecoration]
+}
+
+// Export the effect so it can be used in the component
+export { setSpotlightEffect }
 
 // Language configurations for judge0-extra-ce
 const languageConfigs: Record<string, { extension: any; judge0Id: number }> = {
@@ -49,6 +152,8 @@ export interface CodeEditorHandle {
   runCode: () => Promise<void>
   openTerminal: () => void
   writeToTerminal: (text: string) => void
+  spotlight: (lineStart: number, lineEnd?: number, message?: string) => void
+  clearSpotlight: () => void
 }
 
 interface CodeEditorProps {
@@ -78,10 +183,14 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
     const [showRenameDialog, setShowRenameDialog] = useState(false)
     const [renameName, setRenameName] = useState('')
     const [renameTarget, setRenameTarget] = useState<FileItem | null>(null)
+    const [spotlightLines, setSpotlightLines] = useState<{ start: number; end: number; message?: string } | null>(null)
     // SimpleTerminal handles its own refs, no need for terminal refs
     const terminalOutputRef = useRef<string>('')
     const editorRef = useRef<any>(null)
     const browserRef = useRef<HTMLIFrameElement>(null)
+    const viewRef = useRef<EditorView | null>(null)
+    // Create spotlight extension once and reuse it
+    const spotlightExtensionRef = useRef(createSpotlightExtension())
 
     // Terminal is now handled by SimpleTerminal component
     // No initialization needed
@@ -273,6 +382,29 @@ ${htmlDoc}
       return () => clearTimeout(timer)
     }, [code, saveFile])
 
+    // Update spotlight in CodeMirror when spotlightLines changes
+    useEffect(() => {
+      if (viewRef.current && spotlightLines) {
+        viewRef.current.dispatch({
+          effects: setSpotlightEffect.of({ start: spotlightLines.start, end: spotlightLines.end })
+        })
+        
+        // Scroll to highlighted line
+        try {
+          const line = viewRef.current.state.doc.line(spotlightLines.start)
+          viewRef.current.dispatch({
+            effects: EditorView.scrollIntoView(line.from, { y: 'center' })
+          })
+        } catch {
+          // Skip if line doesn't exist
+        }
+      } else if (viewRef.current && !spotlightLines) {
+        viewRef.current.dispatch({
+          effects: setSpotlightEffect.of(null)
+        })
+      }
+    }, [spotlightLines])
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       setCode: (newCode: string, newLanguage?: string) => {
@@ -339,6 +471,36 @@ ${htmlDoc}
         }
         // Note: SimpleTerminal will show output when commands are executed
         // This is mainly for programmatic output from Judge0 execution
+      },
+      spotlight: (lineStart: number, lineEnd?: number, message?: string) => {
+        const end = lineEnd || lineStart
+        setSpotlightLines({ start: lineStart, end, message })
+        playSpotlightSound()
+        
+        // Update CodeMirror view if available
+        if (viewRef.current) {
+          viewRef.current.dispatch({
+            effects: setSpotlightEffect.of({ start: lineStart, end })
+          })
+          
+          // Scroll to highlighted line
+          try {
+            const line = viewRef.current.state.doc.line(lineStart)
+            viewRef.current.dispatch({
+              effects: EditorView.scrollIntoView(line.from, { y: 'center' })
+            })
+          } catch {
+            // Skip if line doesn't exist
+          }
+        }
+      },
+      clearSpotlight: () => {
+        setSpotlightLines(null)
+        if (viewRef.current) {
+          viewRef.current.dispatch({
+            effects: setSpotlightEffect.of(null)
+          })
+        }
       }
     }))
 
@@ -866,6 +1028,12 @@ ${htmlDoc}
                         languageConfigs[language]?.extension || python(),
                         autocompletion(),
                         keymap.of(searchKeymap),
+                        ...spotlightExtensionRef.current,
+                        ViewPlugin.fromClass(class {
+                          constructor(view: EditorView) {
+                            viewRef.current = view
+                          }
+                        }),
                       ]}
                       onChange={(value) => {
                         setCode(value)

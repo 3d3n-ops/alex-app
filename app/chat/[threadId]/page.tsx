@@ -47,9 +47,14 @@ function ThreadPageContent() {
       <ChatField
         messages={displayMessages}
         onSendMessage={async (msg) => {
+          // Clear spotlight when user sends a new message
+          const editor = editorRef.current
+          if (editor) {
+            editor.clearSpotlight()
+          }
+          
           const result = await sendMessage(msg)
           const intents = (result as any)?.toolIntents || []
-          const editor = editorRef.current
           for (const intent of intents) {
             const name = intent?.name
             const args = intent?.args || {}
@@ -58,6 +63,11 @@ function ThreadPageContent() {
             if (name === 'editor.setCode' || name === 'editor_setCode') editor.setCode(String(args.code || ''), args.language)
             else if (name === 'editor.insertCode' || name === 'editor_insertCode') editor.insertCode(String(args.code || ''), args.position)
             else if (name === 'editor.createFile' || name === 'editor_createFile') await editor.createFile(String(args.name || 'new.txt'), String(args.language || 'plaintext'), String(args.content || ''))
+            else if (name === 'editor.spotlight' || name === 'editor_spotlight') {
+              const lineStart = Number(args.lineStart) || 1
+              const lineEnd = args.lineEnd ? Number(args.lineEnd) : undefined
+              editor.spotlight(lineStart, lineEnd, args.message)
+            }
           }
         }}
         isLoading={isLoading}
