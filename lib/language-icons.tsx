@@ -77,6 +77,8 @@ export const detectLanguageFromFileName = (filename: string): string => {
     'xml': 'xml',
     'yaml': 'yaml',
     'yml': 'yaml',
+    'txt': 'plaintext',
+    'text': 'plaintext',
   }
   
   return extensionMap[ext] || 'python' // Default to python

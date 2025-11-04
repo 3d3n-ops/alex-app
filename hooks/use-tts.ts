@@ -14,7 +14,8 @@ interface TTSOptions {
 export function useTTS(options: TTSOptions = {}) {
   const audioQueueRef = useRef<HTMLAudioElement[]>([])
   const isPlayingRef = useRef(false)
-  const [isEnabled, setIsEnabled] = useState(false)
+  // TTS enabled by default for Alex
+  const [isEnabled, setIsEnabled] = useState(true)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const speak = useCallback(async (text: string, immediate = false) => {

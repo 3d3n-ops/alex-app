@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -292,11 +294,6 @@ export default function ChatField({
             ) : (
               <>
                 {messages.map((message) => {
-                  // Normalize content to array for assistant messages with multiple bubbles
-                  const contentBubbles = Array.isArray(message.content) 
-                    ? message.content 
-                    : [message.content]
-                  
                   // User messages always show as single bubble
                   if (message.role === 'user') {
                     return (
@@ -311,24 +308,148 @@ export default function ChatField({
                     )
                   }
                   
-                  // Assistant messages can have multiple bubbles
+                  // Assistant messages - render as single continuous stream (no bubbles when TTS is enabled)
+                  // When TTS is enabled, text streams continuously with audio
+                  const content = Array.isArray(message.content) 
+                    ? message.content.join('\n\n') 
+                    : message.content
+                  
+                  // Check if this is the last message and we're currently streaming
+                  const isStreaming = isLoading && messages.length > 0 && messages[messages.length - 1]?.id === message.id
+                  
                   return (
-                    <div key={message.id} className="flex flex-col gap-2">
-                      {contentBubbles.map((bubble, idx) => (
-                        <div
-                          key={`${message.id}-${idx}`}
-                          className={cn('flex gap-3 justify-start')}
+                    <div key={message.id} className="flex gap-3 justify-start">
+                      <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%] text-sm">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            // Custom pre (code block) styling
+                            pre({ children, ...props }: any) {
+                              return (
+                                <pre className="bg-muted-foreground/10 border border-border rounded-md p-3 overflow-x-auto my-2 text-sm font-mono" {...props}>
+                                  {children}
+                                </pre>
+                              )
+                            },
+                            // Custom inline code styling
+                            code({ className, children, ...props }: any) {
+                              // If className contains 'language-', it's a code block (handled by pre)
+                              // Otherwise it's inline code
+                              if (className?.includes('language-')) {
+                                return <code className={`${className} font-mono`} {...props}>{children}</code>
+                              }
+                              return (
+                                <code className="bg-muted-foreground/10 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                                  {children}
+                                </code>
+                              )
+                            },
+                            // Custom paragraph styling
+                            p({ children }) {
+                              return <p className="my-2 leading-relaxed">{children}</p>
+                            },
+                            // Custom heading styling
+                            h1({ children }) {
+                              return <h1 className="text-xl font-semibold mt-4 mb-2 first:mt-0">{children}</h1>
+                            },
+                            h2({ children }) {
+                              return <h2 className="text-lg font-semibold mt-3 mb-2 first:mt-0">{children}</h2>
+                            },
+                            h3({ children }) {
+                              return <h3 className="text-base font-semibold mt-3 mb-2 first:mt-0">{children}</h3>
+                            },
+                            // Custom list styling
+                            ul({ children }) {
+                              return <ul className="list-disc list-inside my-2 space-y-1 ml-4">{children}</ul>
+                            },
+                            ol({ children }) {
+                              return <ol className="list-decimal list-inside my-2 space-y-1 ml-4">{children}</ol>
+                            },
+                            li({ children }) {
+                              return <li className="my-1">{children}</li>
+                            },
+                            // Custom link styling
+                            a({ href, children }) {
+                              return (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-accent underline underline-offset-2 hover:text-accent/80 transition-colors"
+                                >
+                                  {children}
+                                </a>
+                              )
+                            },
+                            // Custom blockquote styling
+                            blockquote({ children }) {
+                              return (
+                                <blockquote className="border-l-4 border-accent pl-4 italic text-muted-foreground my-3">
+                                  {children}
+                                </blockquote>
+                              )
+                            },
+                            // Custom horizontal rule
+                            hr() {
+                              return <hr className="border-border my-4" />
+                            },
+                            // Custom table styling
+                            table({ children }) {
+                              return (
+                                <div className="overflow-x-auto my-3">
+                                  <table className="border-collapse border border-border">{children}</table>
+                                </div>
+                              )
+                            },
+                            th({ children }) {
+                              return (
+                                <th className="border border-border px-3 py-2 bg-muted font-semibold text-left">
+                                  {children}
+                                </th>
+                              )
+                            },
+                            td({ children }) {
+                              return (
+                                <td className="border border-border px-3 py-2">
+                                  {children}
+                                </td>
+                              )
+                            },
+                          }}
                         >
-                          <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%]">
-                            <p className="text-sm whitespace-pre-wrap break-words">
-                              {bubble}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                          {content}
+                        </ReactMarkdown>
+                        {isStreaming && (
+                          <span className="inline-block w-2 h-4 bg-foreground/60 animate-pulse ml-1 align-middle" />
+                        )}
+                      </div>
                     </div>
                   )
                 })}
+                {/* Display loading indicator when no assistant message is streaming yet */}
+                {isLoading && messages.length > 0 && messages[messages.length - 1]?.role !== 'assistant' && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="bg-muted rounded-lg px-3 py-2">
+                      <div className="flex gap-1">
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Display loading indicator only when no messages yet */}
+                {isLoading && messages.length === 0 && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="bg-muted rounded-lg px-3 py-2">
+                      <div className="flex gap-1">
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Display todos if they exist */}
                 {todos && todos.length > 0 && (
                   <div className="flex gap-3 justify-start">
@@ -338,17 +459,6 @@ export default function ChatField({
                   </div>
                 )}
               </>
-            )}
-            {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="bg-muted rounded-lg px-3 py-2">
-                  <div className="flex gap-1">
-                    <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="size-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

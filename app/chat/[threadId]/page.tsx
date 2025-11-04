@@ -26,7 +26,7 @@ function ThreadPageContent() {
   // Sync editor files with workspace
   useEditorWorkspaceSync(threadId, true)
 
-  // Convert messages to display format with bubbles
+  // Convert messages to display format - single stream for assistant messages (no bubbles when TTS enabled)
   const displayMessages = useMemo(() => {
     return messages.map(m => {
       const base = {
@@ -35,10 +35,10 @@ function ThreadPageContent() {
         timestamp: new Date(m.createdAt)
       }
       
-      // Split assistant messages into bubbles
+      // Assistant messages - render as single continuous stream (TTS enabled by default)
+      // Keep content as single string for streaming display
       if (m.role === 'assistant') {
-        const bubbles = splitMessageIntoBubbles(m.content, mode)
-        return { ...base, content: bubbles.length > 1 ? bubbles : bubbles[0] }
+        return { ...base, content: m.content }
       }
       
       // User messages stay as single strings
@@ -48,8 +48,9 @@ function ThreadPageContent() {
 
   return (
     <div className="h-screen w-screen relative">
-      {/* Back Button */}
-      <div className="fixed top-6 left-6 z-50">
+      <CodeEditor ref={editorRef} className="h-full" threadId={threadId} />
+      {/* Back Button - bottom left */}
+      <div className="fixed bottom-6 left-6 z-50">
         <Button
           variant="ghost"
           onClick={() => router.push('/dashboard')}
@@ -59,7 +60,6 @@ function ThreadPageContent() {
           Back to Dashboard
         </Button>
       </div>
-      <CodeEditor ref={editorRef} className="h-full" threadId={threadId} />
       <ChatField
         messages={displayMessages}
         todos={currentTodos}

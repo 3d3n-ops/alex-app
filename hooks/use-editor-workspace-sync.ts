@@ -120,6 +120,8 @@ export function useEditorWorkspaceSync(threadId: string | undefined, enabled: bo
                 'java': 'java',
                 'cpp': 'cpp',
                 'c': 'c',
+                'txt': 'plaintext',
+                'text': 'plaintext',
               }
               const language = langMap[ext] || 'plaintext'
 

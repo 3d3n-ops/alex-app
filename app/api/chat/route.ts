@@ -1,5 +1,6 @@
 import { loadAgentConfig, normalizeAgent, type AgentId } from '@/lib/agents'
 import { streamOpenRouterChat, mapProviderToModel, type ORMessage, openRouterChatOnce } from '@/lib/openrouter'
+import { getBestModel } from '@/lib/model-router'
 import { buildTools, buildORToolsFromRegistry, buildClientUITools, buildEditorTools } from '@/lib/tools'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { formatUserProfileAsContext } from '@/lib/user-profile'
@@ -147,7 +148,8 @@ export async function POST(req: Request) {
 		{ role: 'system', content: enhancedSystemPrompt },
 		...cleanedMessages
 	]
-  const model = mapProviderToModel(provider)
+  // Use model router to get best available model, with fallback support
+  const model = provider ? mapProviderToModel(provider) : getBestModel()
 
   if (!enableTools && !clientIntents) {
     return await streamOpenRouterChat({

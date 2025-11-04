@@ -140,6 +140,7 @@ const languageConfigs: Record<string, { extension: any; judge0Id: number }> = {
   css: { extension: json(), judge0Id: 0 }, // CSS (browser preview only)
   json: { extension: json(), judge0Id: 0 },
   markdown: { extension: markdown(), judge0Id: 0 },
+  plaintext: { extension: [], judge0Id: 0 }, // Plain text - no language extension needed
   // Multi-file support
   multifile: { extension: json(), judge0Id: 89 }, // Multi-file program
 }
@@ -1025,7 +1026,11 @@ ${htmlDoc}
                       height="100%"
                       theme={oneDark}
                       extensions={[
-                        languageConfigs[language]?.extension || python(),
+                        ...(languageConfigs[language]?.extension 
+                          ? (Array.isArray(languageConfigs[language].extension) 
+                              ? languageConfigs[language].extension 
+                              : [languageConfigs[language].extension])
+                          : [python()]),
                         autocompletion(),
                         keymap.of(searchKeymap),
                         ...spotlightExtensionRef.current,

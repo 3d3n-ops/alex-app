@@ -25,7 +25,7 @@ function ChatPageContent() {
   // Sync editor files with workspace
   useEditorWorkspaceSync(threadId, true)
 
-  // Convert messages to display format with bubbles
+  // Convert messages to display format - single stream for assistant messages (no bubbles when TTS enabled)
   const displayMessages = useMemo(() => {
     return messages.map(m => {
       const base = {
@@ -34,10 +34,10 @@ function ChatPageContent() {
         timestamp: new Date(m.createdAt)
       }
       
-      // Split assistant messages into bubbles
+      // Assistant messages - render as single continuous stream (TTS enabled by default)
+      // Keep content as single string for streaming display
       if (m.role === 'assistant') {
-        const bubbles = splitMessageIntoBubbles(m.content, mode)
-        return { ...base, content: bubbles.length > 1 ? bubbles : bubbles[0] }
+        return { ...base, content: m.content }
       }
       
       // User messages stay as single strings
