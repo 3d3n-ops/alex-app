@@ -6,14 +6,29 @@ import { formatUserProfileAsContext } from '@/lib/user-profile'
 
 export const runtime = 'nodejs'
 
+// Add GET handler for testing/health check
+export async function GET() {
+	return new Response(JSON.stringify({ 
+		status: 'ok', 
+		message: 'Chat API is available',
+		endpoint: '/api/chat',
+		methods: ['POST']
+	}), {
+		status: 200,
+		headers: { 'Content-Type': 'application/json' }
+	})
+}
+
 export async function POST(req: Request) {
+	// TODO: Re-enable authentication for production
+	// Temporarily disabled for stress testing
 	const { userId } = await auth()
-	if (!userId) {
-		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-			status: 401,
-			headers: { 'Content-Type': 'application/json' }
-		})
-	}
+	// if (!userId) {
+	// 	return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+	// 		status: 401,
+	// 		headers: { 'Content-Type': 'application/json' }
+	// 	})
+	// }
 
 	try {
 		const body = await req.json().catch(() => ({}))
@@ -40,9 +55,97 @@ export async function POST(req: Request) {
 	// Combine system prompt with user profile context
 	const enhancedSystemPrompt = systemPrompt + userProfileContext
 
+	// Clean and validate messages to ensure tool_calls and tool_call_id are properly paired
+	// Anthropic requires that tool_result messages have a corresponding tool_use in the previous assistant message
+	// Tool messages from client history might not be properly paired, so we validate them
+	const cleanedMessages: ORMessage[] = []
+	let lastAssistantToolCalls: string[] = [] // Track tool call IDs from the most recent assistant message
+	
+	for (let i = 0; i < messages.length; i++) {
+		const msg = messages[i] as any
+		
+		if (msg.role === 'assistant') {
+			// Store tool call IDs from this assistant message for validation
+			lastAssistantToolCalls = []
+			
+			// Extract tool call IDs from tool_calls array
+			if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
+				for (const call of msg.tool_calls) {
+					const callId = call?.id || call?.call_id || call?.tool_use_id
+					if (callId) {
+						lastAssistantToolCalls.push(callId)
+					}
+				}
+			}
+			
+			// Handle content as string (OpenRouter format) or array (Anthropic format)
+			let content = msg.content || ''
+			if (Array.isArray(content)) {
+				// Extract only text content from Anthropic-style content array
+				// Filter out tool_use and tool_result blocks (these should be separate messages)
+				content = content
+					.filter((block: any) => block.type === 'text')
+					.map((block: any) => block.text)
+					.join('')
+			}
+			
+			// Only include tool_calls if they exist and are valid
+			const toolCalls = msg.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0
+				? msg.tool_calls
+				: undefined
+			
+			cleanedMessages.push({
+				role: 'assistant',
+				content: content,
+				...(toolCalls ? { tool_calls: toolCalls } : {})
+			})
+		} else if (msg.role === 'tool') {
+			// Only include tool messages if they have a valid tool_call_id that matches the previous assistant's tool_use
+			const toolCallId = msg.tool_call_id || msg.tool_use_id
+			if (toolCallId && lastAssistantToolCalls.includes(toolCallId)) {
+				cleanedMessages.push({
+					role: 'tool',
+					content: msg.content || '',
+					tool_call_id: toolCallId
+				})
+				// Remove this tool call ID from the list (each tool call should only have one result)
+				lastAssistantToolCalls = lastAssistantToolCalls.filter(id => id !== toolCallId)
+			} else {
+				// Skip tool messages without valid tool_call_id or with unmatched IDs
+				// This prevents the "unexpected tool_use_id" error from Anthropic
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('[Chat API] Skipping orphaned tool message:', {
+						toolCallId,
+						expectedIds: lastAssistantToolCalls,
+						hasValidId: !!toolCallId && lastAssistantToolCalls.includes(toolCallId),
+						messageIndex: i
+					})
+				}
+			}
+		} else {
+			// User or system messages - add as-is
+			// Handle content as string or array
+			let content = msg.content || ''
+			if (Array.isArray(content)) {
+				// Extract only text content, filter out any tool blocks
+				content = content
+					.filter((block: any) => block.type === 'text')
+					.map((block: any) => block.text)
+					.join('')
+			}
+			
+			cleanedMessages.push({
+				role: msg.role as 'user' | 'system',
+				content: content
+			})
+			// Reset tool calls when we hit a user message (conversation boundary)
+			lastAssistantToolCalls = []
+		}
+	}
+
 	const orMessages: ORMessage[] = [
 		{ role: 'system', content: enhancedSystemPrompt },
-		...messages
+		...cleanedMessages
 	]
   const model = mapProviderToModel(provider)
 

@@ -18,6 +18,9 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
   const [messages, setMessages] = useState<ChatMessageRow[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
+  const autoSentRef = useRef<boolean>(false)
+  const autoSendInProgressRef = useRef<boolean>(false)
+  const sendMessageRef = useRef<((text: string, skipUserAppend?: boolean) => Promise<any>) | null>(null)
   
   // Streaming TTS support - speaks as text arrives
   const streamingTTS = useStreamingTTS({
@@ -39,13 +42,43 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
   // Load existing thread messages
   useEffect(() => {
     if (!threadId) return
+    autoSentRef.current = false // Reset when thread changes
+    autoSendInProgressRef.current = false
     let cancelled = false
     ;(async () => {
       const rows = await chatDb.messages.where('threadId').equals(threadId).sortBy('createdAt')
-      if (!cancelled) setMessages(rows)
+      if (!cancelled) {
+        setMessages(rows)
+      }
     })()
     return () => { cancelled = true }
   }, [threadId])
+
+  // Auto-send if last message is from user and hasn't been responded to
+  useEffect(() => {
+    if (!threadId || autoSentRef.current || autoSendInProgressRef.current || isLoading || messages.length === 0) {
+      return
+    }
+
+    // Check if last message is from user
+    // Since messages are sorted by createdAt, if last message is user, there's no assistant response yet
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage.role !== 'user') {
+      // If last message is not user, mark as sent (either already responded or no user message)
+      autoSentRef.current = true
+      return
+    }
+
+    // Auto-send the user message (skip appending since it already exists)
+    if (!sendMessageRef.current) return
+    
+    autoSendInProgressRef.current = true
+    autoSentRef.current = true
+    
+    sendMessageRef.current(lastMessage.content, true).finally(() => {
+      autoSendInProgressRef.current = false
+    })
+  }, [threadId, messages, isLoading])
 
   async function ensureThread(): Promise<string> {
     if (threadId) return threadId
@@ -78,9 +111,11 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     return id
   }
 
-  async function sendMessage(text: string) {
+  const sendMessage = async (text: string, skipUserAppend: boolean = false) => {
     const tid = await ensureThread()
-    await append('user', text, tid)
+    if (!skipUserAppend) {
+      await append('user', text, tid)
+    }
     setIsLoading(true)
     
     // Stop any ongoing TTS when new message starts
@@ -103,9 +138,23 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
           agent: mode,
           clientIntents: true,
           threadId: tid, // Pass threadId to chat API for workspace scoping
-          messages: messages
-            .concat([{ threadId: tid, role: 'user', content: text, createdAt: Date.now() }])
-            .map(m => ({ role: m.role, content: m.content }))
+          messages: (skipUserAppend 
+            ? messages // Message already in array from IndexedDB
+            : messages.concat([{ threadId: tid, role: 'user', content: text, createdAt: Date.now() }]) // Add new message
+          ).map(m => {
+              // Preserve tool_calls for assistant messages and tool_call_id for tool messages
+              // Note: ChatMessageRow doesn't include 'tool' role, but API messages might
+              const base: any = { role: m.role, content: m.content }
+              if (m.role === 'assistant' && (m as any).tool_calls) {
+                base.tool_calls = (m as any).tool_calls
+              }
+              // Handle tool messages (if present in extended message structure)
+              if ((m as any).role === 'tool' && (m as any).tool_call_id) {
+                base.role = 'tool'
+                base.tool_call_id = (m as any).tool_call_id
+              }
+              return base
+            })
         }),
         signal: controllerRef.current.signal
       })
@@ -236,6 +285,11 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
       setIsLoading(false)
     }
   }
+
+  // Keep sendMessage ref updated
+  useEffect(() => {
+    sendMessageRef.current = sendMessage
+  }, [sendMessage])
 
   return {
     threadId,

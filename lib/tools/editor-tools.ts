@@ -29,6 +29,16 @@ export async function editorReadFile(
   }
 
   try {
+    // Check if IndexedDB is available (browser-only)
+    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+      // Server-side: return error with helpful message
+      return {
+        content: '',
+        path: params.path,
+        error: 'IndexedDB not available. editor_readFile requires browser environment. Use readFile() for server-side workspace files instead.',
+      }
+    }
+
     // Normalize path (remove leading slash, ensure consistent format)
     const normalizedPath = params.path.replace(/^\/+/, '')
     
@@ -81,10 +91,19 @@ export async function editorReadFile(
       error: `File not found: ${params.path}. Available files: ${filePaths.length > 0 ? filePaths.join(', ') : 'none'}.${suggestions.length > 0 ? ` Did you mean: ${suggestions.join(', ')}?` : ''}`,
     }
   } catch (error: any) {
+    // Handle IndexedDB-specific errors gracefully
+    const errorMsg = error?.message || String(error)
+    if (errorMsg.includes('IndexedDB') || errorMsg.includes('indexedDB')) {
+      return {
+        content: '',
+        path: params.path,
+        error: 'IndexedDB not available. editor_readFile requires browser environment. Use readFile() for server-side workspace files instead.',
+      }
+    }
     return {
       content: '',
       path: params.path,
-      error: `Error reading file: ${error?.message || String(error)}`,
+      error: `Error reading file: ${errorMsg}`,
     }
   }
 }
@@ -105,6 +124,16 @@ export async function editorListFiles(
   }
 
   try {
+    // Check if IndexedDB is available (browser-only)
+    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+      // Server-side: return empty list with helpful error
+      return {
+        files: [],
+        count: 0,
+        error: 'IndexedDB not available. editor_listFiles requires browser environment. Use listFiles() for server-side workspace files instead.',
+      }
+    }
+
     let files = await db.files
       .where('threadId')
       .equals(threadId)
@@ -133,10 +162,19 @@ export async function editorListFiles(
       count: filePaths.length,
     }
   } catch (error: any) {
+    // Handle IndexedDB-specific errors gracefully
+    const errorMsg = error?.message || String(error)
+    if (errorMsg.includes('IndexedDB') || errorMsg.includes('indexedDB')) {
+      return {
+        files: [],
+        count: 0,
+        error: 'IndexedDB not available. editor_listFiles requires browser environment. Use listFiles() for server-side workspace files instead.',
+      }
+    }
     return {
       files: [],
       count: 0,
-      error: `Error listing files: ${error?.message || String(error)}`,
+      error: `Error listing files: ${errorMsg}`,
     }
   }
 }

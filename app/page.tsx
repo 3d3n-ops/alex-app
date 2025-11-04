@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useSignIn, useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import ThemeSelector from "@/components/theme-selector"
 
 export default function Home() {
   const { signIn } = useSignIn()
@@ -47,7 +48,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#161210] text-white">
+    <main className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="px-6 py-6 md:px-12">
         <div className="font-mono font-bold text-lg">Alex</div>
@@ -60,23 +61,25 @@ export default function Home() {
             The AI Programming Tutor
           </h1>
 
-          <p className="text-white/70 text-sm md:text-base mb-8 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-foreground/70 text-sm md:text-base mb-8 max-w-2xl mx-auto leading-relaxed">
             Built for the next generation of builders with AI, made for students and professionals
           </p>
 
           <Button
             onClick={handleStartBuilding}
-            className="bg-white text-[#161210] hover:bg-white/90 font-mono font-bold px-6 py-2 rounded-md mb-12"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono font-bold px-6 py-2 rounded-md mb-12"
           >
             Start building
           </Button>
 
           {/* Placeholder Demo Area */}
           <div className="mx-auto max-w-3xl">
-            <div className="bg-[#C9B59A] rounded-2xl aspect-video w-full" />
+            <div className="bg-accent rounded-2xl aspect-video w-full" />
           </div>
         </div>
       </section>
+      
+      <ThemeSelector />
     </main>
   )
 }

@@ -126,7 +126,7 @@ const modes = {
       messages: [{ role: 'user', content: 'Create a Python file called hello.py with print("Hello, world!")' }],
       clientIntents: true
     }
-  },
+  }, 
   tools: {
     name: 'Server Tools (streaming)',
     body: {

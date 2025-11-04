@@ -7,6 +7,10 @@ export interface UserProfile {
   programmingLevel?: 'beginner' | 'intermediate' | 'advanced'
   languages: string[]
   onboardingCompleted: boolean
+  preferences?: string
+  notificationsEnabled?: boolean
+  notificationTime?: string
+  chatHistoryEnabled?: boolean
   createdAt?: number
   updatedAt?: number
 }
@@ -40,6 +44,14 @@ export async function GET() {
         ? user.publicMetadata.languages as string[]
         : [],
       onboardingCompleted: Boolean(user.publicMetadata?.onboardingCompleted),
+      preferences: user.publicMetadata?.preferences as string,
+      notificationsEnabled: user.publicMetadata?.notificationsEnabled !== undefined 
+        ? Boolean(user.publicMetadata?.notificationsEnabled)
+        : true,
+      notificationTime: user.publicMetadata?.notificationTime as string || '09:00',
+      chatHistoryEnabled: user.publicMetadata?.chatHistoryEnabled !== undefined
+        ? Boolean(user.publicMetadata?.chatHistoryEnabled)
+        : true,
       createdAt: user.publicMetadata?.createdAt as number,
       updatedAt: user.publicMetadata?.updatedAt as number,
     }
@@ -81,6 +93,18 @@ export async function PUT(req: Request) {
     }
     if (body.onboardingCompleted !== undefined) {
       updates.onboardingCompleted = Boolean(body.onboardingCompleted)
+    }
+    if (body.preferences !== undefined) {
+      updates.preferences = String(body.preferences)
+    }
+    if (body.notificationsEnabled !== undefined) {
+      updates.notificationsEnabled = Boolean(body.notificationsEnabled)
+    }
+    if (body.notificationTime !== undefined) {
+      updates.notificationTime = String(body.notificationTime)
+    }
+    if (body.chatHistoryEnabled !== undefined) {
+      updates.chatHistoryEnabled = Boolean(body.chatHistoryEnabled)
     }
 
     // Get current user to merge with existing metadata

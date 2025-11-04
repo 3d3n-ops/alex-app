@@ -1,0 +1,828 @@
+{
+  "timestamp": "2025-11-01T18:48:06.329Z",
+  "endpoint": "http://localhost:3000",
+  "agent": "alexTutor",
+  "conversations": [
+    {
+      "scenario": "mixed",
+      "messages": [
+        {
+          "messageIndex": 0,
+          "userMessage": "Hello! Can you explain what recursion is?",
+          "timestamp": 1762022461112,
+          "latency": {
+            "total": 12086,
+            "firstToken": 12085,
+            "lastToken": 12086
+          },
+          "response": {
+            "content": "Hello! Great question—recursion is a fundamental concept worth understanding deeply.\n\nBefore I dive in, let me ask you a few quick questions to tailor my explanation:\n\n1. **Have you seen recursion before**, or is this your first encounter with it?\n2. **What programming language are you most comfortable with?** (Python, JavaScript, Java, etc.)\n3. **What sparked your interest in recursion?** (A specific problem, coursework, curiosity?)\n\nWhile you're thinking about those, here's the core idea:\n\n**Recursion is when a function calls itself** to solve a problem by breaking it down into smaller, similar subproblems. Each recursive call works on a simpler version of the original problem until it reaches a **base case**—a condition so simple it can be solved directly without further recursion.\n\nThink of it like Russian nesting dolls (matryoshkas): to see what's inside, you open one doll, which reveals a smaller doll inside, and you repeat the process until you reach the tiniest doll that doesn't open anymore. That smallest doll is your base case!\n\n---\n\n**A classic example: Factorial**\n\nThe factorial of a number `n` (written as `n!`) is:\n- `5! = 5 × 4 × 3 × 2 × 1 = 120`\n\nRecursively, we can think:\n- `factorial(5) = 5 × factorial(4)`\n- `factorial(4) = 4 × factorial(3)`\n- ...and so on until...\n- `factorial(1) = 1` ← **base case**\n\n---\n\nWould you like me to create a working code example to demonstrate this? If so, which language would you prefer? Or would you rather explore a different example (like tree traversal, Fibonacci, or something else)?",
+            "contentLength": 1558,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 32
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 1,
+          "userMessage": "Can you show me a Python example?",
+          "timestamp": 1762022473308,
+          "latency": {
+            "total": 10709,
+            "firstToken": 10709,
+            "lastToken": 10709
+          },
+          "response": {
+            "content": "Perfect! Let me create a Python file with a clear recursion example for you.",
+            "contentLength": 76,
+            "toolCalls": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "recursion_intro.py",
+                  "language": "python",
+                  "content": "\"\"\"\nRecursion Examples - Understanding the Fundamentals\n\"\"\"\n\ndef factorial(n):\n    \"\"\"\n    Calculate factorial using recursion.\n    \n    factorial(5) = 5 × 4 × 3 × 2 × 1 = 120\n    \n    How it works:\n    - Base case: if n <= 1, return 1 (stop recursing)\n    - Recursive case: return n × factorial(n - 1)\n    \"\"\"\n    # Base case: the simplest problem we can solve directly\n    if n <= 1:\n        return 1\n    \n    # Recursive case: break down into smaller subproblem\n    return n * factorial(n - 1)\n\n\ndef countdown(n):\n    \"\"\"\n    A simpler example: count down from n to 1.\n    \n    This helps visualize the call stack.\n    \"\"\"\n    # Base case: stop when we reach 0\n    if n <= 0:\n        print(\"Blastoff! 🚀\")\n        return\n    \n    # Do some work\n    print(n)\n    \n    # Recursive call with smaller problem\n    countdown(n - 1)\n\n\ndef sum_list(numbers):\n    \"\"\"\n    Sum a list recursively (instead of using a loop).\n    \n    Key insight: sum([1,2,3,4]) = 1 + sum([2,3,4])\n    \"\"\"\n    # Base case: empty list sums to 0\n    if not numbers:\n        return 0\n    \n    # Recursive case: first element + sum of the rest\n    return numbers[0] + sum_list(numbers[1:])\n\n\n# Let's test them!\nif __name__ == \"__main__\":\n    print(\"=== Factorial Example ===\")\n    print(f\"factorial(5) = {factorial(5)}\")\n    print(f\"factorial(3) = {factorial(3)}\")\n    print()\n    \n    print(\"=== Countdown Example ===\")\n    countdown(5)\n    print()\n    \n    print(\"=== Sum List Example ===\")\n    my_list = [1, 2, 3, 4, 5]\n    print(f\"sum_list({my_list}) = {sum_list(my_list)}\")\n"
+                }
+              }
+            ],
+            "toolIntents": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "recursion_intro.py",
+                  "language": "python",
+                  "content": "\"\"\"\nRecursion Examples - Understanding the Fundamentals\n\"\"\"\n\ndef factorial(n):\n    \"\"\"\n    Calculate factorial using recursion.\n    \n    factorial(5) = 5 × 4 × 3 × 2 × 1 = 120\n    \n    How it works:\n    - Base case: if n <= 1, return 1 (stop recursing)\n    - Recursive case: return n × factorial(n - 1)\n    \"\"\"\n    # Base case: the simplest problem we can solve directly\n    if n <= 1:\n        return 1\n    \n    # Recursive case: break down into smaller subproblem\n    return n * factorial(n - 1)\n\n\ndef countdown(n):\n    \"\"\"\n    A simpler example: count down from n to 1.\n    \n    This helps visualize the call stack.\n    \"\"\"\n    # Base case: stop when we reach 0\n    if n <= 0:\n        print(\"Blastoff! 🚀\")\n        return\n    \n    # Do some work\n    print(n)\n    \n    # Recursive call with smaller problem\n    countdown(n - 1)\n\n\ndef sum_list(numbers):\n    \"\"\"\n    Sum a list recursively (instead of using a loop).\n    \n    Key insight: sum([1,2,3,4]) = 1 + sum([2,3,4])\n    \"\"\"\n    # Base case: empty list sums to 0\n    if not numbers:\n        return 0\n    \n    # Recursive case: first element + sum of the rest\n    return numbers[0] + sum_list(numbers[1:])\n\n\n# Let's test them!\nif __name__ == \"__main__\":\n    print(\"=== Factorial Example ===\")\n    print(f\"factorial(5) = {factorial(5)}\")\n    print(f\"factorial(3) = {factorial(3)}\")\n    print()\n    \n    print(\"=== Countdown Example ===\")\n    countdown(5)\n    print()\n    \n    print(\"=== Sum List Example ===\")\n    my_list = [1, 2, 3, 4, 5]\n    print(f\"sum_list({my_list}) = {sum_list(my_list)}\")\n"
+                }
+              }
+            ],
+            "streamingChunks": 2
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 2,
+          "userMessage": "What about a recursive function to calculate factorial?",
+          "timestamp": 1762022484125,
+          "latency": {
+            "total": 6206,
+            "firstToken": 6206,
+            "lastToken": 6206
+          },
+          "response": {
+            "content": "Great! Let me create a Python file with a factorial function that demonstrates recursion clearly.",
+            "contentLength": 97,
+            "toolCalls": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "factorial.py",
+                  "language": "python",
+                  "content": "def factorial(n):\n    \"\"\"\n    Calculate factorial of n using recursion.\n    \n    Base case: factorial(0) = factorial(1) = 1\n    Recursive case: factorial(n) = n * factorial(n-1)\n    \"\"\"\n    # Base case: stop the recursion\n    if n <= 1:\n        return 1\n    \n    # Recursive case: call itself with a smaller problem\n    return n * factorial(n - 1)\n\n\n# Let's trace through an example\nprint(\"factorial(5) =\", factorial(5))\nprint(\"factorial(3) =\", factorial(3))\nprint(\"factorial(0) =\", factorial(0))\n\n# Let's manually trace factorial(4) to see how it works:\nprint(\"\\n--- Tracing factorial(4) ---\")\nprint(\"factorial(4)\")\nprint(\"  = 4 * factorial(3)\")\nprint(\"  = 4 * (3 * factorial(2))\")\nprint(\"  = 4 * (3 * (2 * factorial(1)))\")\nprint(\"  = 4 * (3 * (2 * 1))\")\nprint(\"  = 4 * (3 * 2)\")\nprint(\"  = 4 * 6\")\nprint(\"  = 24\")\n"
+                }
+              }
+            ],
+            "toolIntents": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "factorial.py",
+                  "language": "python",
+                  "content": "def factorial(n):\n    \"\"\"\n    Calculate factorial of n using recursion.\n    \n    Base case: factorial(0) = factorial(1) = 1\n    Recursive case: factorial(n) = n * factorial(n-1)\n    \"\"\"\n    # Base case: stop the recursion\n    if n <= 1:\n        return 1\n    \n    # Recursive case: call itself with a smaller problem\n    return n * factorial(n - 1)\n\n\n# Let's trace through an example\nprint(\"factorial(5) =\", factorial(5))\nprint(\"factorial(3) =\", factorial(3))\nprint(\"factorial(0) =\", factorial(0))\n\n# Let's manually trace factorial(4) to see how it works:\nprint(\"\\n--- Tracing factorial(4) ---\")\nprint(\"factorial(4)\")\nprint(\"  = 4 * factorial(3)\")\nprint(\"  = 4 * (3 * factorial(2))\")\nprint(\"  = 4 * (3 * (2 * factorial(1)))\")\nprint(\"  = 4 * (3 * (2 * 1))\")\nprint(\"  = 4 * (3 * 2)\")\nprint(\"  = 4 * 6\")\nprint(\"  = 24\")\n"
+                }
+              }
+            ],
+            "streamingChunks": 2
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 3,
+          "userMessage": "Can you create a file with that example?",
+          "timestamp": 1762022490440,
+          "latency": {
+            "total": 9895,
+            "firstToken": 9895,
+            "lastToken": 9895
+          },
+          "response": {
+            "content": "I'll create a Python file with a factorial recursion example, including explanations and a few test cases so you can see it in action.",
+            "contentLength": 134,
+            "toolCalls": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "factorial_recursion.py",
+                  "language": "python",
+                  "content": "\"\"\"\nRecursion Example: Factorial\n\nFactorial of n (n!) = n × (n-1) × (n-2) × ... × 1\nExamples:\n  5! = 5 × 4 × 3 × 2 × 1 = 120\n  3! = 3 × 2 × 1 = 6\n  1! = 1\n  0! = 1 (by definition)\n\"\"\"\n\ndef factorial(n):\n    \"\"\"\n    Calculate factorial of n using recursion.\n    \n    Args:\n        n: A non-negative integer\n        \n    Returns:\n        The factorial of n\n    \"\"\"\n    # BASE CASE: The simplest case we can solve directly\n    if n <= 1:\n        return 1\n    \n    # RECURSIVE CASE: Break the problem into a smaller version\n    # factorial(n) = n × factorial(n-1)\n    return n * factorial(n - 1)\n\n\n# Let's trace through factorial(5) step by step:\n# factorial(5) = 5 × factorial(4)\n#              = 5 × (4 × factorial(3))\n#              = 5 × (4 × (3 × factorial(2)))\n#              = 5 × (4 × (3 × (2 × factorial(1))))\n#              = 5 × (4 × (3 × (2 × 1)))  ← base case reached!\n#              = 5 × (4 × (3 × 2))\n#              = 5 × (4 × 6)\n#              = 5 × 24\n#              = 120\n\n\nif __name__ == '__main__':\n    # Test cases\n    print(\"Factorial Examples:\")\n    print(f\"factorial(0) = {factorial(0)}\")  # 1\n    print(f\"factorial(1) = {factorial(1)}\")  # 1\n    print(f\"factorial(3) = {factorial(3)}\")  # 6\n    print(f\"factorial(5) = {factorial(5)}\")  # 120\n    print(f\"factorial(7) = {factorial(7)}\")  # 5040\n"
+                }
+              }
+            ],
+            "toolIntents": [
+              {
+                "name": "editor_createFile",
+                "args": {
+                  "name": "factorial_recursion.py",
+                  "language": "python",
+                  "content": "\"\"\"\nRecursion Example: Factorial\n\nFactorial of n (n!) = n × (n-1) × (n-2) × ... × 1\nExamples:\n  5! = 5 × 4 × 3 × 2 × 1 = 120\n  3! = 3 × 2 × 1 = 6\n  1! = 1\n  0! = 1 (by definition)\n\"\"\"\n\ndef factorial(n):\n    \"\"\"\n    Calculate factorial of n using recursion.\n    \n    Args:\n        n: A non-negative integer\n        \n    Returns:\n        The factorial of n\n    \"\"\"\n    # BASE CASE: The simplest case we can solve directly\n    if n <= 1:\n        return 1\n    \n    # RECURSIVE CASE: Break the problem into a smaller version\n    # factorial(n) = n × factorial(n-1)\n    return n * factorial(n - 1)\n\n\n# Let's trace through factorial(5) step by step:\n# factorial(5) = 5 × factorial(4)\n#              = 5 × (4 × factorial(3))\n#              = 5 × (4 × (3 × factorial(2)))\n#              = 5 × (4 × (3 × (2 × factorial(1))))\n#              = 5 × (4 × (3 × (2 × 1)))  ← base case reached!\n#              = 5 × (4 × (3 × 2))\n#              = 5 × (4 × 6)\n#              = 5 × 24\n#              = 120\n\n\nif __name__ == '__main__':\n    # Test cases\n    print(\"Factorial Examples:\")\n    print(f\"factorial(0) = {factorial(0)}\")  # 1\n    print(f\"factorial(1) = {factorial(1)}\")  # 1\n    print(f\"factorial(3) = {factorial(3)}\")  # 6\n    print(f\"factorial(5) = {factorial(5)}\")  # 120\n    print(f\"factorial(7) = {factorial(7)}\")  # 5040\n"
+                }
+              }
+            ],
+            "streamingChunks": 3
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 4,
+          "userMessage": "Now can you modify it to add memoization?",
+          "timestamp": 1762022500442,
+          "latency": {
+            "total": 4821
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.8.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01ELs5EyFUviudojukapV6YQ. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfFdUPdwuQeD5Rkf3qn\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 5,
+          "userMessage": "What is memoization?",
+          "timestamp": 1762022505375,
+          "latency": {
+            "total": 12020,
+            "firstToken": 12019,
+            "lastToken": 12020
+          },
+          "response": {
+            "content": "Excellent question! Let me explain **memoization** first, then we'll enhance your factorial function.\n\n## What is Memoization?\n\n**Memoization** is an optimization technique where you **cache (store) the results** of expensive function calls and return the cached result when the same inputs occur again, instead of recalculating.\n\nThink of it like taking notes in class:\n- First time you learn a concept → you work hard to understand it\n- Next time you need it → you just look at your notes instead of re-learning from scratch\n\n**Why use it with recursion?**\nSome recursive functions recalculate the same values many times. For example:\n- `fibonacci(5)` calls `fibonacci(4)` and `fibonacci(3)`\n- `fibonacci(4)` also calls `fibonacci(3)` ← **duplicate work!**\n- This gets exponentially worse as numbers grow\n\nMemoization eliminates this redundant work by remembering results.\n\n---\n\n**For factorial specifically:** Memoization isn't strictly necessary because factorial doesn't have overlapping subproblems (each call is unique: 5→4→3→2→1). But it's still a great learning example!\n\n**Where memoization really shines:** Fibonacci, dynamic programming problems, pathfinding, etc.\n\n---\n\nNow, would you like me to:\n1. **Modify your existing factorial file** to add memoization (so you can compare before/after)?\n2. **Create a NEW file** showing both regular factorial AND a Fibonacci example (where memoization makes a huge difference)?\n\nWhich would help you learn better? 🤔",
+            "contentLength": 1470,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 30
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 6,
+          "userMessage": "Can you search for other examples of memoization in the codebase?",
+          "timestamp": 1762022517504,
+          "latency": {
+            "total": 14728
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.16.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01SgLPXqaNn3buxLrfPzr9LZ. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfHdUSxGyYaBEeKad6W\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 7,
+          "userMessage": "Explain the difference between recursion and iteration",
+          "timestamp": 1762022532349,
+          "latency": {
+            "total": 26501,
+            "firstToken": 26501,
+            "lastToken": 26501
+          },
+          "response": {
+            "content": "Great questions! Let me address both:\n\n## Recursion vs. Iteration\n\nThese are two different approaches to solving repetitive problems:\n\n### **Recursion**\n- A function **calls itself** with simpler inputs\n- Uses the **call stack** to track state\n- Natural for problems with self-similar structure (trees, graphs, divide-and-conquer)\n- **Pros:** Often more elegant and matches problem structure naturally\n- **Cons:** Can use more memory (stack frames), risk of stack overflow\n\n### **Iteration**\n- Uses **loops** (for, while) to repeat operations\n- Uses explicit variables to track state\n- **Pros:** Usually more memory-efficient, faster in practice\n- **Cons:** Can be less intuitive for hierarchical problems\n\n### **Same problem, both ways:**\n\n**Recursive factorial:**\n```python\ndef factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n```\n\n**Iterative factorial:**\n```python\ndef factorial(n):\n    result = 1\n    for i in range(2, n + 1):\n        result *= i\n    return result\n```\n\n**Key insight:** Any recursion can be converted to iteration (and vice versa), but one approach often feels more natural depending on the problem.\n\n---\n\n## Searching for Memoization Examples\n\nNow let me search the codebase for existing memoization patterns to show you real-world usage!\n\nInteresting! I found several patterns in your codebase. Let me look at the most relevant ones:\n\nLet me check what files are actually available in your workspace:\n\nAh, I see! The workspace is empty—the grep search found files in the **project repository**, but there are no files in your current **workspace** yet.\n\n## What I Found\n\nThe search revealed that your codebase uses **`useMemo`** extensively—this is React's built-in memoization hook! Here's what it does:\n\n### **React's `useMemo` (found in your codebase)**\n```javascript\n// From app/chat/page.tsx\nconst displayMessages = useMemo(() => {\n  // expensive computation here\n}, [dependencies])\n```\n\n**What it does:** Caches the result of a computation and only recalculates when dependencies change. This prevents unnecessary re-renders in React components.\n\n---\n\n## Let me create examples for you!\n\nSince we don't have the factorial file yet in the workspace, would you like me to create:\n\n1. **A comprehensive Python file** showing:\n   - Regular factorial (recursive)\n   - Factorial with memoization\n   - Fibonacci (where memoization really shines!)\n   - Performance comparison\n\n2. **Or** just modify a factorial file if you have one in the editor?\n\nWhich would you prefer? 🎯",
+            "contentLength": 2525,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 51
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 8,
+          "userMessage": "Create a Fibonacci function using both approaches",
+          "timestamp": 1762022558960,
+          "latency": {
+            "total": 19113,
+            "firstToken": 19113,
+            "lastToken": 19113
+          },
+          "response": {
+            "content": "Perfect! Let me create a comprehensive Python file that shows Fibonacci implemented with both recursion and iteration, plus a memoized version to demonstrate the performance difference.",
+            "contentLength": 185,
+            "toolCalls": [
+              {
+                "name": "editor_createFile",
+                "args": {}
+              }
+            ],
+            "toolIntents": [
+              {
+                "name": "editor_createFile",
+                "args": {}
+              }
+            ],
+            "streamingChunks": 4
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 9,
+          "userMessage": "Which one is more efficient?",
+          "timestamp": 1762022578183,
+          "latency": {
+            "total": 18285,
+            "firstToken": 18285,
+            "lastToken": 18285
+          },
+          "response": {
+            "content": "Excellent question! Let's break down the efficiency of each approach:\n\n## Performance Comparison\n\n### **1. Naive Recursion** ❌ (Slowest)\n```python\nfibonacci_recursive(5)\n```\n- **Time Complexity:** O(2^n) — exponential! 💥\n- **Space Complexity:** O(n) — call stack depth\n- **Why so slow?** Massive duplicate calculations:\n  ```\n  fib(5) calls fib(4) and fib(3)\n  fib(4) calls fib(3) and fib(2)  ← fib(3) calculated AGAIN!\n  fib(3) calls fib(2) and fib(1)  ← fib(2) calculated multiple times!\n  ```\n- For `fib(40)`, you'd make **over 300 million function calls**! 😱\n\n---\n\n### **2. Iteration** ✅ (Fast & Efficient)\n```python\nfibonacci_iterative(5)\n```\n- **Time Complexity:** O(n) — linear\n- **Space Complexity:** O(1) — only uses a few variables\n- **Why fast?** Calculates each number exactly once, bottom-up\n- **Winner for most practical use cases!** 🏆\n\n---\n\n### **3. Memoization** ✅ (Fast, but uses memory)\n```python\nfibonacci_memoized(5)\n```\n- **Time Complexity:** O(n) — each value calculated once, then cached\n- **Space Complexity:** O(n) — stores cache + call stack\n- **Why fast?** First call does work, subsequent calls are instant lookups\n- **Best when:** You need to call the function multiple times with different inputs\n\n---\n\n## The Verdict\n\n| Approach | Speed | Memory | Best For |\n|----------|-------|--------|----------|\n| **Naive Recursion** | 🐌 Exponential | Medium | Learning only! |\n| **Iteration** | ⚡ Linear | 🎯 Minimal | Single calculations |\n| **Memoization** | ⚡ Linear | 📦 High | Repeated calls |\n\n---\n\n## Real-World Analogy\n\nImagine calculating `fib(100)`:\n\n- **Naive recursion:** Like climbing a mountain, going back down, climbing again, repeating billions of times\n- **Iteration:** Like walking up stairs once, counting as you go\n- **Memoization:** Like walking up stairs once, but writing each step number on the wall so anyone else can just read it\n\n---\n\n## Quick Challenge for You 🤔\n\n**Before running the code**, can you predict:\n1. Which approach would finish first for `fib(35)`?\n2. What would happen if you tried `fibonacci_recursive(50)`?\n\nWant me to add timing code to the file so you can actually measure the difference? That would make the performance gap crystal clear!",
+            "contentLength": 2211,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 45
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 10,
+          "userMessage": "Can you explain time complexity?",
+          "timestamp": 1762022596578,
+          "latency": {
+            "total": 26860,
+            "firstToken": 26860,
+            "lastToken": 26860
+          },
+          "response": {
+            "content": "Fantastic question! **Time complexity** is one of the most important concepts in computer science. Let's build your intuition step by step.\n\n---\n\n## What is Time Complexity?\n\n**Time complexity** describes **how the runtime of an algorithm grows as the input size increases**.\n\nIt's not about measuring exact seconds (which vary by computer), but about understanding the **pattern of growth**.\n\n---\n\n## The Key Question\n\n> \"If I double the input size, what happens to the runtime?\"\n\n- Does it stay the same?\n- Does it double?\n- Does it quadruple?\n- Does it explode exponentially?\n\n---\n\n## Big O Notation\n\nWe express time complexity using **Big O notation**: `O(...)` \n\nIt describes the **worst-case** growth rate, ignoring constants and focusing on the dominant factor.\n\n---\n\n## Common Time Complexities (from fastest to slowest)\n\nLet me show you with real examples:\n\n### **O(1) — Constant Time** ⚡\n**Runtime doesn't change** regardless of input size.\n\n```python\ndef get_first_element(arr):\n    return arr[0]  # Always one operation\n```\n- `arr` has 10 items? → 1 operation\n- `arr` has 1 million items? → Still 1 operation!\n\n---\n\n### **O(log n) — Logarithmic Time** 🚀\n**Runtime grows slowly** as input doubles.\n\n```python\ndef binary_search(sorted_arr, target):\n    # Each step cuts the problem in half\n    # 1000 items → ~10 steps\n    # 1,000,000 items → ~20 steps\n```\n\n**Analogy:** Finding a word in a dictionary by opening to the middle, then halving repeatedly.\n\n---\n\n### **O(n) — Linear Time** 📈\n**Runtime grows proportionally** with input size.\n\n```python\ndef find_max(arr):\n    max_val = arr[0]\n    for num in arr:  # Must check every element\n        if num > max_val:\n            max_val = num\n    return max_val\n```\n- 10 items → ~10 operations\n- 100 items → ~100 operations\n- Double input → Double time\n\n---\n\n### **O(n log n) — Linearithmic Time** 📊\n**Common in efficient sorting algorithms.**\n\n```python\ndef merge_sort(arr):\n    # Divides (log n) and merges (n)\n    # Most efficient general-purpose sorts\n```\n- Better than O(n²) but slower than O(n)\n\n---\n\n### **O(n²) — Quadratic Time** 🐌\n**Runtime quadruples when input doubles.**\n\n```python\ndef bubble_sort(arr):\n    for i in range(len(arr)):      # n times\n        for j in range(len(arr)):  # n times (nested!)\n            # Compare and swap\n```\n- 10 items → ~100 operations\n- 100 items → ~10,000 operations\n- 1000 items → ~1,000,000 operations 😱\n\n**Nested loops** often signal O(n²).\n\n---\n\n### **O(2^n) — Exponential Time** 💥\n**Runtime DOUBLES with each additional input.**\n\n```python\ndef fibonacci_recursive(n):\n    if n <= 1:\n        return n\n    return fibonacci_recursive(n-1) + fibonacci_recursive(n-2)\n```\n- `fib(10)` → ~1,000 calls\n- `fib(20)` → ~21,000 calls\n- `fib(30)` → ~2,000,000 calls\n- `fib(40)` → ~300,000,000 calls 🔥\n\n**This is why naive recursion is dangerous!**\n\n---\n\n## Visual Comparison\n\nImagine processing `n = 1000` items:\n\n| Complexity | Operations | Real-world analogy |\n|------------|-----------|-------------------|\n| O(1) | 1 | Turning on a light switch |\n| O(log n) | ~10 | Finding a name in a phone book |\n| O(n) | 1,000 | Reading every page in a book |\n| O(n log n) | ~10,000 | Organizing a deck of cards efficiently |\n| O(n²) | 1,000,000 | Comparing every person to every other person in a room |\n| O(2^n) | 10^301 | 🚫 Practically impossible |\n\n---\n\n## How to Analyze Time Complexity\n\n**Step-by-step process:**\n\n1. **Count the operations** as a function of input size `n`\n2. **Drop constants:** `O(3n)` → `O(n)`\n3. **Keep only the dominant term:** `O(n² + n)` → `O(n²)`\n\n**Examples:**\n\n```python\n# O(n) - single loop\nfor i in range(n):\n    print(i)\n\n# O(n²) - nested loops",
+            "contentLength": 3673,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 74
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 11,
+          "userMessage": "What about space complexity?",
+          "timestamp": 1762022623547,
+          "latency": {
+            "total": 27851,
+            "firstToken": 27851,
+            "lastToken": 27851
+          },
+          "response": {
+            "content": "Excellent follow-up! **Space complexity** is just as important as time complexity, but often overlooked. Let's explore it!\n\n---\n\n## What is Space Complexity?\n\n**Space complexity** describes **how much memory an algorithm uses as the input size increases**.\n\nJust like time complexity asks \"How does runtime grow?\", space complexity asks:\n\n> \"How does memory usage grow as the input size increases?\"\n\n---\n\n## What Counts as \"Space\"?\n\n### **1. Input Space** (usually excluded)\nThe memory needed to store the input itself.\n\n### **2. Auxiliary Space** (what we measure!)\nExtra memory the algorithm uses:\n- Variables\n- Data structures (arrays, dictionaries, etc.)\n- **Call stack** (for recursion!)\n\n**Space Complexity = Auxiliary Space**\n\n---\n\n## Common Space Complexities\n\n### **O(1) — Constant Space** 🎯\nUses a **fixed amount** of memory regardless of input size.\n\n```python\ndef sum_array(arr):\n    total = 0        # One variable\n    for num in arr:  # Reuses same loop variable\n        total += num\n    return total\n```\n- Input: 10 items → Uses 1 variable\n- Input: 1 million items → Still uses 1 variable!\n\n---\n\n### **O(n) — Linear Space** 📦\nMemory grows **proportionally** with input.\n\n```python\ndef copy_array(arr):\n    new_arr = []\n    for item in arr:\n        new_arr.append(item)  # Creates new array of size n\n    return new_arr\n```\n- Input: 100 items → Creates 100-item array\n- Input: 1000 items → Creates 1000-item array\n\n---\n\n### **O(n) — Recursion Call Stack** 📚\n\n**This is the tricky one!** Each recursive call adds a frame to the call stack.\n\n```python\ndef factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)  # n stack frames!\n```\n\n**Call stack for `factorial(5)`:**\n```\nfactorial(5)\n  → factorial(4)\n    → factorial(3)\n      → factorial(2)\n        → factorial(1)  ← 5 frames deep!\n```\n\n**Space complexity: O(n)** because the stack depth is `n`.\n\n---\n\n### **O(n²) — Quadratic Space** 📊\n\nCreating 2D structures.\n\n```python\ndef create_matrix(n):\n    matrix = []\n    for i in range(n):\n        row = [0] * n  # n elements per row\n        matrix.append(row)  # n rows\n    return matrix  # Total: n × n = n² elements\n```\n\n---\n\n## Time vs. Space: The Trade-off\n\nOften you can **trade space for time** (or vice versa). This is a fundamental engineering decision!\n\n### **Example: Fibonacci**\n\n| Approach | Time | Space | Trade-off |\n|----------|------|-------|-----------|\n| **Naive Recursion** | O(2^n) 🐌 | O(n) | Slow, moderate memory |\n| **Iteration** | O(n) ⚡ | O(1) 🎯 | Fast, minimal memory ← **Best!** |\n| **Memoization** | O(n) ⚡ | O(n) 📦 | Fast, but uses cache |\n\n**Memoization trades space for time:** Uses more memory (cache) to achieve faster runtime.\n\n---\n\n## Analyzing Space Complexity\n\n### **Example 1: Iterative Fibonacci**\n```python\ndef fibonacci_iterative(n):\n    if n <= 1:\n        return n\n    \n    prev, curr = 0, 1  # Only 2 variables\n    for _ in range(2, n + 1):\n        prev, curr = curr, prev + curr\n    return curr\n```\n**Space: O(1)** — Only uses `prev` and `curr`, regardless of `n`.\n\n---\n\n### **Example 2: Recursive Fibonacci (no memo)**\n```python\ndef fibonacci_recursive(n):\n    if n <= 1:\n        return n\n    return fibonacci_recursive(n-1) + fibonacci_recursive(n-2)\n```\n**Space: O(n)** — Maximum call stack depth is `n`.\n\n---\n\n### **Example 3: Memoized Fibonacci**\n```python\ndef fibonacci_memoized(n, memo={}):\n    if n in memo:\n        return memo[n]\n    if n <= 1:\n        return n\n    memo[n] = fibonacci_memoized(n-1, memo) + fibonacci_memoized(n-2, memo)\n    return memo[n]\n```\n**Space: O(n)** — Cache stores `n` values + call stack of depth `n`.\n\n---\n\n## Real-World Analogy\n\nImagine solving a jigsaw puzzle:\n\n- **O",
+            "contentLength": 3690,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 74
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 12,
+          "userMessage": "Show me how to optimize the recursive version",
+          "timestamp": 1762022651507,
+          "latency": {
+            "total": 20506,
+            "firstToken": 20506,
+            "lastToken": 20506
+          },
+          "response": {
+            "content": "Excellent! Let's optimize the recursive Fibonacci step by step. I'll show you multiple optimization techniques.\n\nLet me create a comprehensive file that demonstrates different optimization strategies:",
+            "contentLength": 200,
+            "toolCalls": [
+              {
+                "name": "editor_createFile",
+                "args": {}
+              }
+            ],
+            "toolIntents": [
+              {
+                "name": "editor_createFile",
+                "args": {}
+              }
+            ],
+            "streamingChunks": 4
+          },
+          "errors": []
+        },
+        {
+          "messageIndex": 13,
+          "userMessage": "Can you read the file we created earlier?",
+          "timestamp": 1762022672119,
+          "latency": {
+            "total": 7544
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01VDNVvabrTjmVcvBEYvSdB2. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfUX1KBCT7htNGGMnVW\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 14,
+          "userMessage": "What is tail recursion?",
+          "timestamp": 1762022679778,
+          "latency": {
+            "total": 7864
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01Pue8VuTXhCz7TxCbBdDJPi. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfV6SEYxyfzaTtBx5hg\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 15,
+          "userMessage": "Can you implement a tail-recursive version?",
+          "timestamp": 1762022687744,
+          "latency": {
+            "total": 6239
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01ThWJPotxx5ajeTpMfQ7d7T. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfVaD5fvXxt1Asn59ZL\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 16,
+          "userMessage": "Explain when to use recursion vs iteration",
+          "timestamp": 1762022694096,
+          "latency": {
+            "total": 7589
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01PWi5TzvcQXBFQUsNXegaCY. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_vrtx_011CUhfW8pP7i8KQQaCAzH5g\\\"}\",\"provider_name\":\"Google\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 17,
+          "userMessage": "Show me examples from real codebases",
+          "timestamp": 1762022701787,
+          "latency": {
+            "total": 6322
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01FEwvFKTQCBUsDZ1uZhFRDz. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_vrtx_011CUhfWdLsaP7ae8VVm3gyB\\\"}\",\"provider_name\":\"Google\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 18,
+          "userMessage": "What are common pitfalls with recursion?",
+          "timestamp": 1762022708221,
+          "latency": {
+            "total": 6338
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01QkqAdt9qoGjUhF9PkXZRTx. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfX6dSpJtUX6cVVZ3gn\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 19,
+          "userMessage": "Can you create a test file for the factorial function?",
+          "timestamp": 1762022714674,
+          "latency": {
+            "total": 6145
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01NVYBi75J2Uc3s2D5SvDuo9. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_vrtx_011CUhfXZJp43NJkjVRBESHb\\\"}\",\"provider_name\":\"Google\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 20,
+          "userMessage": "Explain how the stack works with recursion",
+          "timestamp": 1762022720926,
+          "latency": {
+            "total": 5708
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01HzWVoWdnW5WFcHXXkcVgNn. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfXzCX2c2roJJLYVgHf\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 21,
+          "userMessage": "What happens with deep recursion?",
+          "timestamp": 1762022726738,
+          "latency": {
+            "total": 6366
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01RJpSRcvxjc7GakeH1rg2PA. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfYSZHTH6DKwAhpT4FZ\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 22,
+          "userMessage": "Can you show me how to prevent stack overflow?",
+          "timestamp": 1762022733207,
+          "latency": {
+            "total": 5620
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01L5ro3vWbCAwLBap4yL4CeU. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfYsh8TbYrL1TrVMmiU\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 23,
+          "userMessage": "What are the benefits of recursion?",
+          "timestamp": 1762022738939,
+          "latency": {
+            "total": 6912
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01BYXWdPeXzGwWy7rJxHfWc6. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfZQAws3Wg7extuUeoD\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 24,
+          "userMessage": "When is recursion the wrong choice?",
+          "timestamp": 1762022745962,
+          "latency": {
+            "total": 6275
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01WRGdNGYgdSo3aW2bwB78Rj. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_vrtx_011CUhfZsbCuAzGVMyxWqdnj\\\"}\",\"provider_name\":\"Google\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 25,
+          "userMessage": "Can you write a function that uses recursion to traverse a tree?",
+          "timestamp": 1762022752350,
+          "latency": {
+            "total": 7373
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01Rn1VSUUY95h6YvtxyzysaE. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfaRnxDEBdJ85fcV8nK\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 26,
+          "userMessage": "Explain how recursive algorithms can be parallelized",
+          "timestamp": 1762022759834,
+          "latency": {
+            "total": 10319
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01NQUfnPSdFHKcqm8L2yTnDk. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfbBL5oEKKCaEdxa5rD\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 27,
+          "userMessage": "What is dynamic programming and how does it relate to recursion?",
+          "timestamp": 1762022770255,
+          "latency": {
+            "total": 10051
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01TqjikQ1XWGbeZTJVfUGPG4. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfbwzRoqmxiZiBtWxj5\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 28,
+          "userMessage": "Can you show me a memoized version of a complex recursive problem?",
+          "timestamp": 1762022780416,
+          "latency": {
+            "total": 13103
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01BdFsxmLY7kCktba9LxEJ8q. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfcvGmkzeMXkL1HdGDT\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 29,
+          "userMessage": "Explain the call stack in detail",
+          "timestamp": 1762022793624,
+          "latency": {
+            "total": 9218
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_012DriDDhM7qnLGqKeYUaBYQ. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfdbHYPYVGM2PruPYZw\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 30,
+          "userMessage": "What are the memory implications?",
+          "timestamp": 1762022802957,
+          "latency": {
+            "total": 10626
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01KippJaaGMoatkV2pSeZ4DC. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfeNzPnD96sy17BCuvn\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 31,
+          "userMessage": "Can you create a visualization of how recursion works?",
+          "timestamp": 1762022813685,
+          "latency": {
+            "total": 7698
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01LPzVkcEdvkt3vV6fqm8wpA. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfeyAhi4c6UE6D3yjfz\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 32,
+          "userMessage": "Show me examples of mutual recursion",
+          "timestamp": 1762022821496,
+          "latency": {
+            "total": 9455
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01RYwi3wBhe7EJfMuTPwuDFA. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhffgbLMXhAuXmUitY5c\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 33,
+          "userMessage": "What is indirect recursion?",
+          "timestamp": 1762022831057,
+          "latency": {
+            "total": 7068
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_014ZTpzK6VgyLYfAZSGxYUNa. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfgD78NLH3bGKFvEmrf\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 34,
+          "userMessage": "Can you explain recursive data structures?",
+          "timestamp": 1762022838226,
+          "latency": {
+            "total": 7918
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_012HXDSThZL4KDtqxUZByaEG. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfgntscVp9awKXHt93L\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 35,
+          "userMessage": "Show me how to implement a binary tree recursively",
+          "timestamp": 1762022846248,
+          "latency": {
+            "total": 7155
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01FmFw7992Fq1nmtqKsBrXjc. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfhJbK5nhPQ3wTjqwoJ\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 36,
+          "userMessage": "What is backtracking and how does it use recursion?",
+          "timestamp": 1762022853507,
+          "latency": {
+            "total": 6560
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_0124ZyunrZzoLW9RY1X8B5cj. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfhp7KmbuEgYNfjh8ur\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 37,
+          "userMessage": "Can you create a sudoku solver using backtracking?",
+          "timestamp": 1762022860178,
+          "latency": {
+            "total": 8093
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_01AQuF67Z1SoY68Sk9Sod4uC. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfiRmSDGvcbeNq5ogUe\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 38,
+          "userMessage": "Explain divide and conquer algorithms",
+          "timestamp": 1762022868380,
+          "latency": {
+            "total": 8198
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_014Hf133m2L5ZRu2ubBPFSVj. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfj38CFaAAXmFW352yn\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        },
+        {
+          "messageIndex": 39,
+          "userMessage": "Show me merge sort as an example",
+          "timestamp": 1762022876691,
+          "latency": {
+            "total": 9530
+          },
+          "response": {
+            "content": "",
+            "contentLength": 0,
+            "toolCalls": [],
+            "toolIntents": [],
+            "streamingChunks": 0
+          },
+          "errors": [
+            "Request failed: 500\nOpenRouter error: 400 {\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"messages.22.content.1: unexpected `tool_use_id` found in `tool_result` blocks: toolu_vrtx_019yoN8FCU7Lpe9Fognr23Qp. Each `tool_result` block must have a corresponding `tool_use` block in the previous message.\\\"},\\\"request_id\\\":\\\"req_011CUhfjkV6zq7PeRrJfddhB\\\"}\",\"provider_name\":\"Anthropic\"}},\"user_id\":\"user_3056PLxhmI7eIhZ8QP4WqZggRrl\"}"
+          ]
+        }
+      ],
+      "summary": {
+        "totalMessages": 40,
+        "totalDuration": 425216,
+        "avgLatency": 10521.7,
+        "minLatency": 4821,
+        "maxLatency": 27851,
+        "totalTokenCount": 3954.75,
+        "totalToolCalls": 5,
+        "totalToolIntents": 5,
+        "errorCount": 29,
+        "successRate": 27.500000000000004
+      }
+    }
+  ],
+  "overall": {
+    "totalConversations": 1,
+    "totalMessages": 40,
+    "avgLatencyPerMessage": 10521.7,
+    "p50Latency": 7918,
+    "p95Latency": 26501,
+    "p99Latency": 27851,
+    "totalToolCalls": 5,
+    "totalErrors": 29
+  }
+}

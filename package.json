@@ -8,7 +8,13 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "test:chat": "node tests/test_chat_api.cjs"
+    "test:chat": "node tests/test_chat_api.cjs",
+    "test:stress": "npx tsx tests/stress-test-suite.ts",
+    "test:stress:mixed": "npx tsx tests/stress-test-suite.ts --scenarios=mixed",
+    "test:stress:code": "npx tsx tests/stress-test-suite.ts --scenarios=codeHeavy",
+    "test:stress:questions": "npx tsx tests/stress-test-suite.ts --scenarios=questionHeavy",
+    "test:stress:tools": "npx tsx tests/stress-test-suite.ts --scenarios=toolHeavy",
+    "test:stress:all": "npx tsx tests/stress-test-suite.ts --scenarios=mixed,codeHeavy,questionHeavy,toolHeavy"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.39",
@@ -95,6 +101,7 @@
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
+    "tsx": "^4.19.2",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
   }
