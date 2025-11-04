@@ -126,6 +126,7 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
     
     let assistantContent = ''
     let toolIntents: any[] = []
+    let latestTodos: any[] | null = null
     let streamingContentId: number | undefined
     
     try {
@@ -206,6 +207,8 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
               
               if (data.type === 'toolIntents') {
                 toolIntents = Array.isArray(data.toolIntents) ? data.toolIntents : []
+              } else if (data.type === 'todos') {
+                latestTodos = Array.isArray(data.todos) ? data.todos : null
               } else if (data.type === 'content' && data.delta) {
                 // Append delta to content
                 assistantContent += data.delta
@@ -263,10 +266,10 @@ export function useChatThread(initialThreadId?: string, defaultMode: AgentMode =
           streamingTTS.flush()
         }
         
-        return { toolIntents, assistantMessageId: savedId }
+        return { toolIntents, todos: latestTodos, assistantMessageId: savedId }
       }
       
-      return { toolIntents, assistantMessageId: streamingContentId }
+      return { toolIntents, todos: latestTodos, assistantMessageId: streamingContentId }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         // Request was cancelled, cleanup

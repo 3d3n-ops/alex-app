@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import { globFile, globFileSchema, grepFile, grepFileSchema, readFile, readFileSchema, listFiles, listFilesSchema, writeFile, writeFileSchema } from './fs-tools'
+import { todos, todosSchema } from './todo-tools'
 import type { ORTool } from '@/lib/openrouter'
 import { logTool } from '@/lib/tool-logger'
 
@@ -91,6 +92,40 @@ const writeFileJsonSchema = {
 	required: ['path', 'content'],
 }
 
+const todosJsonSchema = {
+	type: 'object',
+	properties: {
+		merge: {
+			type: 'boolean',
+			description: 'If true, merge with existing todos (update existing by ID, add new ones). If false, replace all todos.'
+		},
+		todos: {
+			type: 'array',
+			items: {
+				type: 'object',
+				properties: {
+					id: {
+						type: 'string',
+						description: 'Unique identifier for the todo item'
+					},
+					content: {
+						type: 'string',
+						description: 'Description of the task'
+					},
+					status: {
+						type: 'string',
+						enum: ['pending', 'in_progress', 'completed', 'cancelled'],
+						description: 'Current status of the todo'
+					}
+				},
+				required: ['id', 'content', 'status']
+			},
+			description: 'Array of todo items to create or update'
+		}
+	},
+	required: ['merge', 'todos'],
+}
+
 export function buildTools(threadId?: string): ToolRegistry {
 	const wrapWithLogging = <T extends z.ZodTypeAny>(
 		toolName: string,
@@ -119,6 +154,13 @@ export function buildTools(threadId?: string): ToolRegistry {
 	}
 
 	return {
+		todos: {
+			name: 'todos',
+			description: 'Create, update, or manage a list of todo items. Use this to layout action plans and track progress through multi-step tasks. Each todo has an id, content, and status (pending, in_progress, completed, cancelled). Use merge=true to update existing todos or add new ones. Use merge=false to replace all todos.',
+			jsonSchema: todosJsonSchema,
+			zodSchema: todosSchema,
+			execute: wrapWithLogging('todos', todosSchema, (args) => todos(args, threadId)),
+		},
 		globFile: {
 			name: 'globFile',
 			description: 'List files matching a glob pattern relative to repo root',

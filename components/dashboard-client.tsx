@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Send, MessageSquare, Settings, X, ChevronDown, Image as ImageIcon, FileText, Trash2 } from "lucide-react"
+import { Menu, Send, MessageSquare, X, ChevronDown, Image as ImageIcon, FileText, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { chatDb } from "@/lib/chat-db"
 import { getAllThreads, ensureThread, getFirstUserMessage } from "@/lib/chat-threads"
@@ -132,7 +132,7 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-6">
+        <div className="h-full flex flex-col p-6">
           <div className="flex items-center justify-between mb-8">
             <div className="font-mono font-bold text-lg">Alex</div>
             <Button
@@ -145,13 +145,13 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
             </Button>
           </div>
 
-          {/* Chat History */}
-          <div className="mb-8">
+          {/* Chat History - takes available space */}
+          <div className="flex-1 overflow-hidden flex flex-col mb-4">
             <div className="flex items-center gap-2 text-muted-foreground font-mono text-sm mb-4">
               <MessageSquare className="h-4 w-4" />
               <span>Chat History</span>
             </div>
-            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-1 overflow-y-auto flex-1">
               {chatThreads.length === 0 ? (
                 <div className="text-muted-foreground font-mono text-sm p-2 hover:bg-muted rounded cursor-pointer">
                   No chats yet
@@ -171,15 +171,14 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
             </div>
           </div>
 
-          {/* Settings */}
-          <div>
-            <div className="flex items-center gap-2 text-muted-foreground font-mono text-sm mb-4">
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
-            </div>
+          {/* Settings - pinned to bottom */}
+          <div className="mt-auto pt-4 border-t border-border">
             <div className="space-y-2">
               <div
-                onClick={() => router.push('/settings')}
+                onClick={() => {
+                  router.push('/settings')
+                  setSidebarOpen(false)
+                }}
                 className="text-foreground/80 font-mono text-sm p-2 hover:bg-muted rounded cursor-pointer transition-colors"
               >
                 Settings

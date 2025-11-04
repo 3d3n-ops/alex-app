@@ -1,5 +1,18 @@
 {
 	"tools": {
+		"todos": {
+			"description": "Create, update, or manage a list of todo items. Use this to layout action plans and track progress through multi-step learning tasks. Each todo has an id, content, and status (pending, in_progress, completed, cancelled). Use merge=true to update existing todos or add new ones. Use merge=false to replace all todos.",
+			"pedagogy": "Help organize teaching sessions into clear, actionable steps. Use after understanding the user's learning goals to create a structured plan.",
+			"when_to_use": [
+				"Laying out a multi-step learning plan after understanding the user's goals",
+				"Tracking progress through a teaching session",
+				"Breaking down complex topics into manageable steps"
+			],
+			"examples": [
+				"Create a 4-step plan: '1. Explain arrays and lists', '2. Provide example code', '3. Let user practice', '4. Grade and provide feedback'",
+				"Mark todo as 'in_progress' when starting a step, 'completed' when done"
+			]
+		},
 		"globFile": {
 			"description": "List or inspect files and directories within the project workspace.",
 			"pedagogy": "Use to model the codebase mentally, then explain the structure.",

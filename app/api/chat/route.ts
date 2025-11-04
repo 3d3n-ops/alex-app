@@ -268,6 +268,7 @@ export async function POST(req: Request) {
         
         try {
           const out = await spec.execute(parsed)
+          // If this is the todos tool, we'll send it as a special event later
           turnMessages.push({ 
             role: 'tool', 
             content: JSON.stringify(out),
@@ -330,6 +331,7 @@ export async function POST(req: Request) {
         
         try {
           const out = await spec.execute(parsed)
+          // If this is the todos tool, we'll send it as a special event later
           turnMessages.push({ 
             role: 'tool', 
             content: JSON.stringify(out),
@@ -359,6 +361,29 @@ export async function POST(req: Request) {
       async start(controller) {
         const send = (data: any) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        }
+        
+        // Extract todos from tool results and send them as a special event
+        // Look through turnMessages for tool results from the todos tool
+        let latestTodos: any = null
+        for (let i = turnMessages.length - 1; i >= 0; i--) {
+          const msg = turnMessages[i]
+          if (msg.role === 'tool') {
+            try {
+              const toolResult = JSON.parse(msg.content || '{}')
+              if (toolResult.todos && Array.isArray(toolResult.todos)) {
+                latestTodos = toolResult.todos
+                break
+              }
+            } catch {
+              // Not JSON, skip
+            }
+          }
+        }
+        
+        // Send todos if found
+        if (latestTodos) {
+          send({ type: 'todos', todos: latestTodos })
         }
         
         // First send tool intents if any

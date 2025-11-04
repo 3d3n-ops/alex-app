@@ -1,5 +1,17 @@
 {
 	"tools": {
+		"todos": {
+			"description": "Create, update, or manage a list of todo items. Use this to layout action plans and track progress through multi-step building tasks. Each todo has an id, content, and status (pending, in_progress, completed, cancelled). Use merge=true to update existing todos or add new ones. Use merge=false to replace all todos.",
+			"when_to_use": [
+				"Laying out a multi-step plan after understanding the user's goals",
+				"Tracking progress through a feature implementation",
+				"Breaking down complex builds into manageable steps"
+			],
+			"examples": [
+				"Create a 4-step plan: '1. Set up project structure', '2. Create API endpoint', '3. Build frontend component', '4. Add tests'",
+				"Mark todo as 'in_progress' when starting a step, 'completed' when done"
+			]
+		},
 		"globFile": {
 			"description": "List or inspect files and directories within the project workspace.",
 			"when_to_use": [

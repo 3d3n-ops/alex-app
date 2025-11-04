@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Send, Bot, User, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TodosDisplay, type TodoItem } from '@/components/todos-display'
 
 export interface ChatMessage {
   id: string
@@ -21,6 +22,7 @@ interface ChatFieldProps {
   isLoading?: boolean
   ttsEnabled?: boolean
   onToggleTTS?: (enabled: boolean) => void
+  todos?: TodoItem[] | null
 }
 
 export default function ChatField({
@@ -30,6 +32,7 @@ export default function ChatField({
   isLoading = false,
   ttsEnabled = false,
   onToggleTTS,
+  todos,
 }: ChatFieldProps) {
   const [inputValue, setInputValue] = useState('')
   const scrollAreaRef = useRef<HTMLDivElement>(null)
@@ -287,44 +290,54 @@ export default function ChatField({
                 </div>
               </div>
             ) : (
-              messages.map((message) => {
-                // Normalize content to array for assistant messages with multiple bubbles
-                const contentBubbles = Array.isArray(message.content) 
-                  ? message.content 
-                  : [message.content]
-                
-                // User messages always show as single bubble
-                if (message.role === 'user') {
+              <>
+                {messages.map((message) => {
+                  // Normalize content to array for assistant messages with multiple bubbles
+                  const contentBubbles = Array.isArray(message.content) 
+                    ? message.content 
+                    : [message.content]
+                  
+                  // User messages always show as single bubble
+                  if (message.role === 'user') {
+                    return (
+                      <div
+                        key={message.id}
+                        className={cn('flex gap-3 justify-end')}
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words text-right max-w-[80%]">
+                          {message.content}
+                        </p>
+                      </div>
+                    )
+                  }
+                  
+                  // Assistant messages can have multiple bubbles
                   return (
-                    <div
-                      key={message.id}
-                      className={cn('flex gap-3 justify-end')}
-                    >
-                      <p className="text-sm whitespace-pre-wrap break-words text-right max-w-[80%]">
-                        {message.content}
-                      </p>
+                    <div key={message.id} className="flex flex-col gap-2">
+                      {contentBubbles.map((bubble, idx) => (
+                        <div
+                          key={`${message.id}-${idx}`}
+                          className={cn('flex gap-3 justify-start')}
+                        >
+                          <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%]">
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {bubble}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )
-                }
-                
-                // Assistant messages can have multiple bubbles
-                return (
-                  <div key={message.id} className="flex flex-col gap-2">
-                    {contentBubbles.map((bubble, idx) => (
-                      <div
-                        key={`${message.id}-${idx}`}
-                        className={cn('flex gap-3 justify-start')}
-                      >
-                        <div className="bg-muted text-foreground rounded-lg px-3 py-2 max-w-[80%]">
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {bubble}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                })}
+                {/* Display todos if they exist */}
+                {todos && todos.length > 0 && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="max-w-[80%]">
+                      <TodosDisplay todos={todos} />
+                    </div>
                   </div>
-                )
-              })
+                )}
+              </>
             )}
             {isLoading && (
               <div className="flex gap-3 justify-start">
