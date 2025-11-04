@@ -19,6 +19,7 @@ import StreakCounter from "@/components/streak-counter"
 import { useNotifications } from "@/hooks/use-notifications"
 import { ThemeSelector } from "@/components/theme-selector"
 import WelcomeMessage from "@/components/welcome-message"
+import { AlexLogo } from "@/components/alex-logo"
 
 interface DashboardClientProps {
   firstName: string
@@ -195,14 +196,20 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
       <div className="min-h-screen flex flex-col">
         {/* Header with hamburger menu and theme selector */}
         <div className="p-6 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(true)}
-            className="text-foreground hover:bg-muted"
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="text-foreground hover:bg-muted"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <AlexLogo height={24} width={24} className="shrink-0" />
+              <span className="font-mono font-bold text-base hidden sm:inline">Alex</span>
+            </div>
+          </div>
           <div className="fixed top-6 right-6 z-50">
             <ThemeSelector />
           </div>

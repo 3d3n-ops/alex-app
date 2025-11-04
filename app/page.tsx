@@ -5,6 +5,7 @@ import { useSignIn, useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { ThemeSelector } from "@/components/theme-selector"
+import { AlexLogo } from "@/components/alex-logo"
 
 export default function Home() {
   const { signIn } = useSignIn()
@@ -51,7 +52,10 @@ export default function Home() {
     <main className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="px-6 py-6 md:px-12">
-        <div className="font-mono font-bold text-lg">Alex</div>
+        <div className="flex items-center gap-3">
+          <AlexLogo height={32} width={32} className="shrink-0" />
+          <div className="font-mono font-bold text-lg">Alex</div>
+        </div>
       </header>
 
       {/* Hero Section */}
