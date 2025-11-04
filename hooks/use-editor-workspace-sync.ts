@@ -78,18 +78,10 @@ export function useEditorWorkspaceSync(threadId: string | undefined, enabled: bo
               await fetch(`/api/workspace?threadId=${encodeURIComponent(threadId)}&path=${encodeURIComponent(workspacePath)}`, {
                 method: 'DELETE'
               })
-              
-              if (process.env.NODE_ENV === 'development' || (typeof process !== 'undefined' && process.env?.DEBUG_TOOLS === 'true')) {
-                console.log(`[Editor-Workspace Sync] Deleted ${workspacePath} from workspace (was deleted in editor)`)
-              }
             } catch (error) {
               console.warn(`[Editor-Workspace Sync] Failed to delete ${workspacePath} from workspace:`, error)
             }
           }
-        }
-
-        if (process.env.NODE_ENV === 'development' || (typeof process !== 'undefined' && process.env?.DEBUG_TOOLS === 'true')) {
-          console.log(`[Editor-Workspace Sync] Synced ${nonFolderFiles.length} editor files to workspace`)
         }
       } catch (error) {
         console.error(`[Editor-Workspace Sync] Error syncing editor to workspace:`, error)
@@ -142,10 +134,6 @@ export function useEditorWorkspaceSync(threadId: string | undefined, enabled: bo
                 updatedAt: Date.now(),
               }
               await db.files.add(newFile)
-
-              if (process.env.NODE_ENV === 'development' || (typeof process !== 'undefined' && process.env?.DEBUG_TOOLS === 'true')) {
-                console.log(`[Editor-Workspace Sync] Added workspace file to editor: ${workspacePath}`)
-              }
             } catch (error) {
               console.warn(`[Editor-Workspace Sync] Failed to add workspace file ${workspacePath} to editor:`, error)
             }

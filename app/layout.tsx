@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Space_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ClerkProvider } from "@clerk/nextjs"
-import { ThemeProvider } from "@/lib/theme-context"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const spaceMono = Space_Mono({
@@ -26,10 +26,15 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body className={`${spaceMono.variable} font-mono antialiased`}>
-          <ThemeProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
             {children}
-            <Analytics />
           </ThemeProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>

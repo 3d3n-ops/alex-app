@@ -34,7 +34,7 @@ export default function StreakCounter() {
   }
 
   return (
-    <div className="flex items-center gap-2 text-white/80 font-mono text-sm">
+    <div className="flex items-center gap-2 text-foreground/80 font-mono text-sm">
       <Flame className="h-5 w-5 text-orange-500" fill="currentColor" />
       <span>{streak} day{streak !== 1 ? 's' : ''} streak</span>
     </div>

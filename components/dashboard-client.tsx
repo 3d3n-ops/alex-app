@@ -3,7 +3,13 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Menu, Send, MessageSquare, Settings, X } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Menu, Send, MessageSquare, Settings, X, ChevronDown, Image as ImageIcon, FileText, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { chatDb } from "@/lib/chat-db"
 import { getAllThreads, ensureThread, getFirstUserMessage } from "@/lib/chat-threads"
@@ -11,7 +17,8 @@ import type { ChatThreadRow } from "@/lib/chat-db"
 import SuggestedLearning from "@/components/suggested-learning"
 import StreakCounter from "@/components/streak-counter"
 import { useNotifications } from "@/hooks/use-notifications"
-import ThemeSelector from "@/components/theme-selector"
+import { ThemeSelector } from "@/components/theme-selector"
+import WelcomeMessage from "@/components/welcome-message"
 
 interface DashboardClientProps {
   firstName: string
@@ -132,7 +139,7 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(false)}
-              className="text-foreground hover:bg-accent/10"
+              className="text-foreground hover:bg-muted"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -146,7 +153,7 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
             </div>
             <div className="space-y-1 max-h-[60vh] overflow-y-auto">
               {chatThreads.length === 0 ? (
-                <div className="text-muted-foreground/60 font-mono text-sm p-2 hover:bg-accent/5 rounded cursor-pointer">
+                <div className="text-muted-foreground font-mono text-sm p-2 hover:bg-muted rounded cursor-pointer">
                   No chats yet
                 </div>
               ) : (
@@ -154,7 +161,7 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
                   <div
                     key={thread.threadId}
                     onClick={() => handleThreadClick(thread.threadId)}
-                    className="text-foreground/80 font-mono text-sm p-2 hover:bg-accent/10 rounded cursor-pointer transition-colors truncate"
+                    className="text-foreground/80 font-mono text-sm p-2 hover:bg-muted rounded cursor-pointer transition-colors truncate"
                     title={thread.title}
                   >
                     {thread.title}
@@ -173,7 +180,7 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
             <div className="space-y-2">
               <div
                 onClick={() => router.push('/settings')}
-                className="text-foreground/80 font-mono text-sm p-2 hover:bg-accent/10 rounded cursor-pointer transition-colors"
+                className="text-foreground/80 font-mono text-sm p-2 hover:bg-muted rounded cursor-pointer transition-colors"
               >
                 Settings
               </div>
@@ -183,74 +190,152 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
       </div>
 
       {/* Overlay */}
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 dark:bg-black/50 light:bg-black/20 z-40" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 dark:bg-black/50 bg-black/30 z-40" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main Content */}
       <div className="min-h-screen flex flex-col">
-        {/* Header with hamburger menu */}
-        <div className="p-6">
+        {/* Header with hamburger menu and theme selector */}
+        <div className="p-6 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(true)}
-            className="text-foreground hover:bg-accent/10"
+            className="text-foreground hover:bg-muted"
           >
             <Menu className="h-6 w-6" />
           </Button>
+          <div className="fixed top-6 right-6 z-50">
+            <ThemeSelector />
+          </div>
         </div>
 
         {/* Center content */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pb-24">
           <div className="w-full max-w-3xl">
-            <h1 className="font-mono font-bold text-2xl md:text-3xl text-foreground text-center mb-2">Hi, {firstName}</h1>
+            <WelcomeMessage firstName={firstName} />
             <p className="font-mono text-foreground text-center mb-8">What will you learn today?</p>
 
-            {/* Chat input with mode toggle and attachments */}
+            {/* Chat input with mode dropdown and attachments */}
             <div className="relative">
               <Input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Ask me anything..."
-                className="w-full bg-input border-none text-foreground placeholder:text-muted-foreground font-mono pl-28 pr-36 py-12 rounded-xl text-base md:text-lg min-h-[80px]"
+                className="w-full bg-input border-none text-foreground placeholder:text-muted-foreground font-mono pl-4 pr-20 py-12 rounded-xl text-base md:text-lg min-h-[120px]"
               />
-              {/* Left actions: attachments first, then mode toggle */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-4">
+              {/* Mode selector at bottom-left */}
+              <div className="absolute bottom-3 left-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="inline-flex items-center gap-1.5 text-xs font-mono h-6 px-2.5 rounded-full bg-muted/50 hover:bg-muted border-0 text-foreground/70 hover:text-foreground"
+                    >
+                      <span>{mode === 'learn' ? 'Tutor' : 'Explore'}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    <DropdownMenuItem
+                      onClick={() => setMode('learn')}
+                      className="flex flex-col items-start py-3 px-3 cursor-pointer"
+                    >
+                      <div className="font-medium text-sm mb-1">Tutor Mode</div>
+                      <div className="text-xs text-muted-foreground text-left">
+                        Best for structured learning and step-by-step guidance
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setMode('explore')}
+                      className="flex flex-col items-start py-3 px-3 cursor-pointer"
+                    >
+                      <div className="font-medium text-sm mb-1">Explore Mode</div>
+                      <div className="text-xs text-muted-foreground text-left">
+                        Best for project-based, hackathon-style learning
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {/* Right side actions: upload and send */}
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="text-foreground/60 hover:text-foreground bg-transparent hover:bg-muted/50 transition-colors rounded-full w-6 h-6 inline-flex items-center justify-center"
+                  title="Upload image"
+                >
+                  <ImageIcon className="h-3.5 w-3.5" />
+                </button>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-foreground/80 hover:text-foreground bg-accent/10 hover:bg-accent/15 transition-colors rounded-full w-8 h-8 inline-flex items-center justify-center"
-                  title="Attach file"
+                  className="text-foreground/60 hover:text-foreground bg-transparent hover:bg-muted/50 transition-colors rounded-full w-6 h-6 inline-flex items-center justify-center"
+                  title="Upload file"
                 >
-                  +
+                  <FileText className="h-3.5 w-3.5" />
                 </button>
-                <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => setSelectedFiles(e.target.files ? Array.from(e.target.files) : [])} />
-
-                <button
-                  type="button"
-                  onClick={() => setMode(prev => prev === 'learn' ? 'explore' : 'learn')}
-                  className="inline-flex items-center gap-2 text-xs text-foreground/80 hover:text-foreground"
-                  title={mode === 'learn' ? 'Switch to Explore Mode' : 'Switch to Learn Mode'}
+                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedImages(prev => [...prev, ...Array.from(e.target.files!)])
+                  }
+                }} />
+                <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                  }
+                }} />
+                <Button
+                  onClick={handleSend}
+                  size="icon"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground h-6 w-6 rounded-full"
                 >
-                  <span className={`inline-block w-10 h-5 rounded-full border border-foreground/20 relative transition-colors ${mode === 'learn' ? 'bg-foreground/20' : 'bg-accent'}`}>
-                    <span className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-background transition-all ${mode === 'learn' ? 'left-0.5' : 'left-5'}`}></span>
-                  </span>
-                  <span className="sr-only">{mode === 'learn' ? 'Learn Mode' : 'Explore Mode'}</span>
-                </button>
+                  <Send className="h-3 w-3" />
+                </Button>
               </div>
-              <Button
-                onClick={handleSend}
-                size="icon"
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-accent hover:bg-accent/80 text-accent-foreground h-12 w-12"
-              >
-                <Send className="h-5 w-5" />
-              </Button>
             </div>
-            {/* Small attachments summary */}
+            {/* Attachments display with delete buttons */}
             {(selectedFiles.length > 0 || selectedImages.length > 0) && (
-              <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground font-mono">
-                {selectedFiles.length > 0 && <span>{selectedFiles.length} file(s) attached</span>}
-                {selectedImages.length > 0 && <span>{selectedImages.length} image(s) attached</span>}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={`file-${index}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-xs font-mono"
+                  >
+                    <FileText className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground/80 max-w-[200px] truncate" title={file.name}>
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                      className="text-muted-foreground hover:text-foreground transition-colors ml-1"
+                      title="Remove file"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {selectedImages.map((image, index) => (
+                  <div
+                    key={`image-${index}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-xs font-mono"
+                  >
+                    <ImageIcon className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground/80 max-w-[200px] truncate" title={image.name}>
+                      {image.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImages(prev => prev.filter((_, i) => i !== index))}
+                      className="text-muted-foreground hover:text-foreground transition-colors ml-1"
+                      title="Remove image"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -259,24 +344,22 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
           </div>
         </div>
 
-        {/* Streak counter and Date/Time - bottom right, above theme selector */}
-        <div className="fixed bottom-24 right-6 flex flex-col items-end gap-3 z-40">
+        {/* Streak counter and Date/Time - bottom right */}
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
           <StreakCounter />
-          <div className="text-right font-mono text-sm text-muted-foreground">
+          <div className="text-right font-mono text-sm text-foreground/60">
             <div>{formatDate(currentTime)}</div>
             <div>{formatTime(currentTime)}</div>
           </div>
         </div>
-        
-        <ThemeSelector />
       </div>
       {isSubmitting && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card text-foreground px-6 py-4 rounded-md border border-border font-mono text-sm flex items-center gap-3">
             <span className="inline-flex gap-1">
-              <span className="size-2 rounded-full bg-foreground/70 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="size-2 rounded-full bg-foreground/70 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="size-2 rounded-full bg-foreground/70 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="size-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '300ms' }} />
             </span>
             Preparing your chat…
           </div>

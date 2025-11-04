@@ -16,8 +16,18 @@ export const getLanguageIcon = (language: string, size: number = 16) => {
     case 'cpp':
     case 'c':
       return <Code size={size} style={{ color: '#00599c' }} />
+    case 'csharp':
+    case 'c#':
+      return <Code size={size} style={{ color: '#239120' }} />
+    case 'fsharp':
+    case 'f#':
+      return <Code size={size} style={{ color: '#378bba' }} />
     case 'rust':
       return <Code size={size} style={{ color: '#000000' }} />
+    case 'html':
+      return <Code size={size} style={{ color: '#e34c26' }} />
+    case 'css':
+      return <Code size={size} style={{ color: '#264de4' }} />
     case 'json':
       return <FileJson size={size} style={{ color: '#1f2937' }} />
     case 'markdown':
@@ -50,6 +60,8 @@ export const detectLanguageFromFileName = (filename: string): string => {
     'cc': 'cpp',
     'cxx': 'cpp',
     'c': 'c',
+    'cs': 'csharp',
+    'fs': 'fsharp',
     'rs': 'rust',
     'json': 'json',
     'md': 'markdown',
@@ -60,6 +72,8 @@ export const detectLanguageFromFileName = (filename: string): string => {
     'html': 'html',
     'htm': 'html',
     'css': 'css',
+    'js': 'javascript',
+    'jsx': 'javascript',
     'xml': 'xml',
     'yaml': 'yaml',
     'yml': 'yaml',

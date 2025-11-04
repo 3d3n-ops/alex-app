@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useSignIn, useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import ThemeSelector from "@/components/theme-selector"
+import { ThemeSelector } from "@/components/theme-selector"
 
 export default function Home() {
   const { signIn } = useSignIn()
@@ -67,7 +67,7 @@ export default function Home() {
 
           <Button
             onClick={handleStartBuilding}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono font-bold px-6 py-2 rounded-md mb-12"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono font-bold px-6 py-2 rounded-md mb-12 border border-border"
           >
             Start building
           </Button>
@@ -78,7 +78,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
       <ThemeSelector />
     </main>
   )

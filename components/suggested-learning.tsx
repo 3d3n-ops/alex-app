@@ -136,14 +136,14 @@ export default function SuggestedLearning({ onSuggestionClick }: SuggestedLearni
   return (
     <div className="w-full max-w-3xl mt-8">
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono text-white text-left text-sm md:text-base">
+        <h2 className="font-mono text-foreground text-left text-sm md:text-base">
           Suggested learning
         </h2>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="inline-flex items-center justify-center text-white/60 hover:text-white/80 transition-colors cursor-help focus:outline-none focus:ring-2 focus:ring-white/20 rounded"
+              className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-help focus:outline-none focus:ring-2 focus:ring-ring rounded"
               aria-label="Learn more about suggested learning"
             >
               <Info className="h-4 w-4" />
@@ -152,7 +152,7 @@ export default function SuggestedLearning({ onSuggestionClick }: SuggestedLearni
           <TooltipContent
             side="right"
             sideOffset={8}
-            className="bg-[#2A2622] text-white border border-white/20 max-w-xs font-mono"
+            className="bg-card text-foreground border border-border max-w-xs font-mono"
           >
             These suggestions are personalized based on what you&apos;ve been learning. 
             They help you dive deeper into topics and explore related concepts for thorough understanding.
@@ -164,9 +164,9 @@ export default function SuggestedLearning({ onSuggestionClick }: SuggestedLearni
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="font-mono text-white text-sm md:text-base animate-pulse"
+              className="font-mono text-foreground text-sm md:text-base animate-pulse"
             >
-              <div className="h-5 bg-white/10 rounded w-3/4"></div>
+              <div className="h-5 bg-muted rounded w-3/4"></div>
             </div>
           ))}
         </div>
@@ -176,7 +176,7 @@ export default function SuggestedLearning({ onSuggestionClick }: SuggestedLearni
             <button
               key={index}
               onClick={() => onSuggestionClick(suggestion.prompt)}
-              className="block w-full text-left font-mono text-white text-sm md:text-base hover:text-white/80 transition-colors cursor-pointer"
+              className="block w-full text-left font-mono text-foreground text-sm md:text-base hover:text-foreground/80 transition-colors cursor-pointer"
             >
               {suggestion.title}
             </button>

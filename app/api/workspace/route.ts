@@ -53,16 +53,6 @@ export async function GET(req: Request) {
   const content = readFileFromCache(threadId, path)
   
   if (content === undefined) {
-    const workspace = getThreadWorkspace(threadId)
-    const availableFiles = Array.from(workspace.keys())
-    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
-      console.log(`[Workspace API] File not found: ${path}`, {
-        threadId: threadId.substring(0, 8) + '...',
-        requestedPath: path,
-        availableFiles: availableFiles.slice(0, 10),
-        totalFiles: availableFiles.length
-      })
-    }
     return new Response(JSON.stringify({ error: 'File not found', content: null }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' }
@@ -96,14 +86,6 @@ export async function PUT(req: Request) {
   }
   
   writeFileToCache(threadId, path, content)
-  
-  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
-    console.log(`[Workspace API] File written: ${path}`, {
-      threadId: threadId.substring(0, 8) + '...',
-      path,
-      contentLength: content.length
-    })
-  }
   
   return new Response(JSON.stringify({ success: true, path }), {
     headers: { 'Content-Type': 'application/json' }
@@ -159,15 +141,6 @@ export async function POST(req: Request) {
   }
   
   const files = listFilesFromCache(threadId, directory)
-  
-  if (process.env.NODE_ENV === 'development' || process.env.DEBUG_TOOLS === 'true') {
-    console.log(`[Workspace API] listFiles request:`, {
-      threadId: threadId.substring(0, 8) + '...',
-      directory,
-      filesFound: files.length,
-      files: files.slice(0, 20) // Show first 20
-    })
-  }
   
   return new Response(JSON.stringify({ files, count: files.length }), {
     headers: { 'Content-Type': 'application/json' }

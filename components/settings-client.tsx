@@ -14,7 +14,7 @@ import GeneralSettings from "@/components/settings/general"
 import AccountSettings from "@/components/settings/account"
 import PrivacySettings from "@/components/settings/privacy"
 import BillingSettings from "@/components/settings/billing"
-import ThemeSelector from "@/components/theme-selector"
+import { ThemeSelector } from "@/components/theme-selector"
 
 type SettingsTab = 'general' | 'account' | 'privacy' | 'billing'
 
@@ -66,7 +66,7 @@ export default function SettingsClient() {
           <Button
             variant="ghost"
             onClick={() => router.push('/dashboard')}
-            className="text-foreground/80 hover:text-foreground hover:bg-accent/10 font-mono mb-8"
+            className="text-foreground/80 hover:text-foreground hover:bg-muted font-mono mb-8"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -80,7 +80,7 @@ export default function SettingsClient() {
                 className={`w-full text-left px-4 py-3 rounded-lg font-mono text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'bg-accent text-accent-foreground font-bold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 {tab.label}
@@ -99,7 +99,6 @@ export default function SettingsClient() {
           </div>
         </div>
       </div>
-      
       <ThemeSelector />
     </div>
   )

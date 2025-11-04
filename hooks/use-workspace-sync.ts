@@ -25,23 +25,11 @@ export function useWorkspaceSync(threadId: string | undefined) {
       try {
         const files = await workspace.listFiles()
         
-        // Log in development or if debug tools is enabled
-        const isDev = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
-        const shouldLog = isDev || (typeof process !== 'undefined' && process.env?.DEBUG_TOOLS === 'true')
-        
-        if (shouldLog) {
-          console.log(`[Workspace Sync] Syncing ${files.length} files from IndexedDB to server cache`, {
-            threadId: threadId.substring(0, 8) + '...',
-            files: files.slice(0, 10)
-          })
-        }
-        
-        // Upload each file from IndexedDB to server cache
-        let synced = 0
+        // Upload each file from IndexedDB to server cache (silently)
         for (const filePath of files) {
           try {
             const content = await workspace.readFile(filePath)
-            const res = await fetch('/api/workspace', {
+            await fetch('/api/workspace', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -50,14 +38,10 @@ export function useWorkspaceSync(threadId: string | undefined) {
                 content
               })
             })
-            if (res.ok) synced++
           } catch (error) {
+            // Only log errors, not every sync operation
             console.warn(`[Workspace Sync] Failed to sync file ${filePath} to server:`, error)
           }
-        }
-        
-        if (shouldLog) {
-          console.log(`[Workspace Sync] Completed: ${synced}/${files.length} files synced to server`)
         }
       } catch (error) {
         console.error(`[Workspace Sync] Error syncing to server:`, error)

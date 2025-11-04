@@ -10,6 +10,7 @@ import { cpp } from '@codemirror/lang-cpp'
 import { rust } from '@codemirror/lang-rust'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
+import { html } from '@codemirror/lang-html'
 import { autocompletion } from '@codemirror/autocomplete'
 import { searchKeymap } from '@codemirror/search'
 import { keymap } from '@codemirror/view'
@@ -23,15 +24,21 @@ import { File, FileCode, Folder, FolderOpen, Plus, Trash2, Play, Save, X, Termin
 import { getLanguageIcon, detectLanguageFromFileName } from '@/lib/language-icons'
 import { cn } from '@/lib/utils'
 
-// Language configurations
+// Language configurations for judge0-extra-ce
 const languageConfigs: Record<string, { extension: any; judge0Id: number }> = {
-  python: { extension: python(), judge0Id: 71 }, // Python 3
-  javascript: { extension: javascript({ jsx: true }), judge0Id: 63 }, // Node.js
-  java: { extension: java(), judge0Id: 62 }, // OpenJDK 13.0.1
-  cpp: { extension: cpp(), judge0Id: 54 }, // GCC 9.2.0
-  rust: { extension: rust(), judge0Id: 73 }, // Rust 1.40.0
+  python: { extension: python(), judge0Id: 8 }, // Python 3.7.7 (MPI) - can also use 25, 31, 32 for ML versions
+  javascript: { extension: javascript({ jsx: true }), judge0Id: 0 }, // Not available in judge0-extra-ce
+  java: { extension: java(), judge0Id: 4 }, // Java (OpenJDK 14.0.1)
+  cpp: { extension: cpp(), judge0Id: 2 }, // C++ (Clang 10.0.1)
+  c: { extension: cpp(), judge0Id: 1 }, // C (Clang 10.0.1)
+  csharp: { extension: cpp(), judge0Id: 22 }, // C# (Mono 6.12.0.122)
+  fsharp: { extension: cpp(), judge0Id: 24 }, // F# (.NET Core SDK 3.1.406)
+  html: { extension: html(), judge0Id: 0 }, // HTML (browser preview only)
+  css: { extension: json(), judge0Id: 0 }, // CSS (browser preview only)
   json: { extension: json(), judge0Id: 0 },
   markdown: { extension: markdown(), judge0Id: 0 },
+  // Multi-file support
+  multifile: { extension: json(), judge0Id: 89 }, // Multi-file program
 }
 
 export interface CodeEditorHandle {
@@ -79,13 +86,106 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
     // Terminal is now handled by SimpleTerminal component
     // No initialization needed
 
-    // Update browser preview when code changes (for HTML files)
-    useEffect(() => {
-      if (browserRef.current && showBrowser && language === 'html') {
-        // Use setAttribute for TypeScript compatibility
-        browserRef.current.setAttribute('srcdoc', code)
+    // Build combined HTML document from HTML, CSS, and JS files
+    const buildCombinedHTML = useCallback((htmlContent: string): string => {
+      // Find all CSS and JS files
+      const cssFiles = files.filter(f => !f.isFolder && f.language === 'css' && f.content)
+      const jsFiles = files.filter(f => !f.isFolder && f.language === 'javascript' && f.content)
+      
+      // Extract or create HTML structure
+      let htmlDoc = htmlContent.trim()
+      
+      // If no <html> tag, wrap in basic structure
+      if (!htmlDoc.includes('<html')) {
+        htmlDoc = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview</title>
+</head>
+<body>
+${htmlDoc}
+</body>
+</html>`
       }
-    }, [code, showBrowser, language])
+      
+      // Inject CSS files as <style> tags in <head>
+      if (cssFiles.length > 0) {
+        const cssContent = cssFiles.map(f => `/* ${f.name} */\n${f.content}`).join('\n\n')
+        if (htmlDoc.includes('</head>')) {
+          htmlDoc = htmlDoc.replace('</head>', `  <style>\n${cssContent}\n  </style>\n</head>`)
+        } else if (htmlDoc.includes('<head>')) {
+          htmlDoc = htmlDoc.replace('<head>', `<head>\n  <style>\n${cssContent}\n  </style>`)
+        } else {
+          // Insert before </html> if no head
+          htmlDoc = htmlDoc.replace('</html>', `  <style>\n${cssContent}\n  </style>\n</html>`)
+        }
+      }
+      
+      // Inject JS files as <script> tags before </body> or </html>
+      if (jsFiles.length > 0) {
+        const jsContent = jsFiles.map(f => `/* ${f.name} */\n${f.content}`).join('\n\n')
+        if (htmlDoc.includes('</body>')) {
+          htmlDoc = htmlDoc.replace('</body>', `  <script>\n${jsContent}\n  </script>\n</body>`)
+        } else if (htmlDoc.includes('</html>')) {
+          htmlDoc = htmlDoc.replace('</html>', `  <script>\n${jsContent}\n  </script>\n</html>`)
+        } else {
+          htmlDoc += `\n<script>\n${jsContent}\n</script>\n`
+        }
+      }
+      
+      return htmlDoc
+    }, [files])
+
+    // Update browser preview when code or files change (for HTML/CSS/JS projects)
+    useEffect(() => {
+      if (browserRef.current && showBrowser) {
+        let previewContent = ''
+        
+        if (language === 'html') {
+          // Build combined HTML from HTML + CSS + JS files
+          previewContent = buildCombinedHTML(code)
+        } else if (language === 'css' || language === 'javascript') {
+          // For CSS/JS files, try to find an HTML file to inject into
+          const htmlFile = files.find(f => !f.isFolder && f.language === 'html')
+          if (htmlFile && htmlFile.content) {
+            previewContent = buildCombinedHTML(htmlFile.content)
+          } else {
+            // Create a minimal HTML wrapper for CSS/JS preview
+            if (language === 'css') {
+              previewContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>${code}</style>
+</head>
+<body>
+  <h1>CSS Preview</h1>
+  <p>This is a preview of your CSS. Create an HTML file to see full styling.</p>
+</body>
+</html>`
+            } else {
+              previewContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script>${code}</script>
+</head>
+<body>
+  <h1>JavaScript Preview</h1>
+  <p>Check the browser console for JavaScript output.</p>
+</body>
+</html>`
+            }
+          }
+        }
+        
+        if (previewContent) {
+          browserRef.current.setAttribute('srcdoc', previewContent)
+        }
+      }
+    }, [code, showBrowser, language, files, buildCombinedHTML])
 
     // Load files from database (thread-scoped)
     useEffect(() => {
@@ -283,20 +383,57 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           return
         }
 
-        appendOutput(`\r\n⏳ Executing ${language} code...\r\n`)
+        // Validate code is not empty
+        if (!code || code.trim().length === 0) {
+          appendOutput(`❌ Error: Cannot execute empty code\r\n`)
+          return
+        }
+
+        // Check if we should use multi-file mode
+        // Collect all non-folder files in the same directory/root
+        const allCodeFiles = files.filter(f => !f.isFolder && f.language === language && f.content && f.content.trim().length > 0)
         
-        // Submit to Judge0 API
-        const response = await fetch('/api/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            languageId: languageConfig.judge0Id,
-            stdin: '',
-            cpuTimeLimit: 2,
-            memoryLimit: 128000,
+        // Use multi-file if we have more than one file, or if user explicitly wants it
+        const useMultiFile = allCodeFiles.length > 1 && languageConfig.judge0Id !== 0
+        
+        let response: Response
+        
+        if (useMultiFile) {
+          appendOutput(`\r\n⏳ Executing ${language} project with ${allCodeFiles.length} files...\r\n`)
+          
+          // Prepare multi-file submission
+          const additionalFiles = allCodeFiles
+            .filter(f => f.id !== selectedFileId) // Exclude the main file (it goes in source_code)
+            .map(f => ({
+              content: f.content,
+              name: f.name,
+            }))
+          
+          // Submit to Judge0 API with multi-file support
+          response = await fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: code.trim(),
+              languageId: 89, // Multi-file program
+              stdin: '',
+              additionalFiles: additionalFiles,
+            })
           })
-        })
+        } else {
+          appendOutput(`\r\n⏳ Executing ${language} code...\r\n`)
+          
+          // Submit to Judge0 API (single file)
+          response = await fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: code.trim(),
+              languageId: languageConfig.judge0Id,
+              stdin: '',
+            })
+          })
+        }
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -697,17 +834,19 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                     >
                       {isRunning ? 'Running...' : 'Run'}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowBrowser(!showBrowser)}
-                      className={cn(
-                        'h-7 px-2 text-xs',
-                        showBrowser && 'bg-accent'
-                      )}
-                    >
-                      Browser
-                    </Button>
+                    {(language === 'html' || language === 'css' || language === 'javascript') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowBrowser(!showBrowser)}
+                        className={cn(
+                          'h-7 px-2 text-xs',
+                          showBrowser && 'bg-accent'
+                        )}
+                      >
+                        Browser
+                      </Button>
+                    )}
                     <div className="flex-1" />
                     {currentFile && (
                       <span className="text-xs text-muted-foreground">
@@ -717,7 +856,7 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
                   </div>
 
                   {/* Code Editor */}
-                  <div className="flex-1 overflow-hidden">
+                  <div className="flex-1 overflow-auto">
                     <CodeMirror
                       ref={editorRef}
                       value={code}

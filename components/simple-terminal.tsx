@@ -39,6 +39,8 @@ export function SimpleTerminal({ className, onClose, initialOutput }: SimpleTerm
       fontSize: 14,
       fontFamily: 'Space Mono, monospace',
       cursorBlink: true,
+      scrollback: 10000, // Enable scrollback with 10000 lines
+      allowTransparency: false,
     })
 
     const fitAddon = new FitAddon()
