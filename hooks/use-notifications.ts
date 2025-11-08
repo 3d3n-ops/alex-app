@@ -5,18 +5,53 @@ import { getStreak } from '@/lib/streak'
 
 type NotificationPermissionState = 'default' | 'granted' | 'denied'
 
+interface NotificationSettings {
+  enabled: boolean
+  time: string // Format: "HH:MM" (e.g., "09:00")
+}
 
 /**
- * Hook for managing daily notifications at 9AM
+ * Hook for managing daily notifications with user-configurable settings
  */
-export function useNotifications() {
+export function useNotifications(settings?: NotificationSettings) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const scheduledRef = useRef<boolean>(false)
+  const hourlyCheckRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Request notification permission
+    // Default settings if not provided
+    const notificationSettings: NotificationSettings = settings || {
+      enabled: true,
+      time: '09:00'
+    }
+
+    // Only proceed if notifications are enabled
+    if (!notificationSettings.enabled) {
+      // Clean up any existing schedules
+      if (intervalRef.current) {
+        clearTimeout(intervalRef.current)
+        intervalRef.current = null
+      }
+      if (hourlyCheckRef.current) {
+        clearInterval(hourlyCheckRef.current)
+        hourlyCheckRef.current = null
+      }
+      scheduledRef.current = false
+      return
+    }
+
+    // Request notification permission only if enabled and permission is default
     if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(console.error)
+      // Show a custom message before requesting permission
+      const shouldRequest = window.confirm(
+        'Alex would like to send you daily learning reminders to help you maintain your streak. ' +
+        'These notifications will remind you to continue learning at your preferred time. ' +
+        'Would you like to enable notifications?'
+      )
+      
+      if (shouldRequest) {
+        Notification.requestPermission().catch(console.error)
+      }
     }
 
     const scheduleNotification = async () => {
@@ -29,17 +64,20 @@ export function useNotifications() {
         return
       }
 
-      // Calculate time until next 9AM
-      const now = new Date()
-      const next9AM = new Date()
-      next9AM.setHours(9, 0, 0, 0)
+      // Parse notification time (format: "HH:MM")
+      const [hours, minutes] = notificationSettings.time.split(':').map(Number)
       
-      // If it's already past 9AM today, schedule for tomorrow
-      if (now >= next9AM) {
-        next9AM.setDate(next9AM.getDate() + 1)
+      // Calculate time until next notification time
+      const now = new Date()
+      const nextNotification = new Date()
+      nextNotification.setHours(hours, minutes, 0, 0)
+      
+      // If it's already past the notification time today, schedule for tomorrow
+      if (now >= nextNotification) {
+        nextNotification.setDate(nextNotification.getDate() + 1)
       }
 
-      const msUntil9AM = next9AM.getTime() - now.getTime()
+      const msUntilNotification = nextNotification.getTime() - now.getTime()
 
       // Schedule the notification
       const timeoutId = setTimeout(async () => {
@@ -82,7 +120,7 @@ export function useNotifications() {
           scheduledRef.current = false
           scheduleNotification()
         }
-      }, msUntil9AM)
+      }, msUntilNotification)
 
       scheduledRef.current = true
       intervalRef.current = timeoutId
@@ -92,8 +130,8 @@ export function useNotifications() {
     scheduleNotification()
 
     // Also check every hour to reschedule if needed (for reliability)
-    const hourlyCheck = setInterval(() => {
-      if (!scheduledRef.current) {
+    hourlyCheckRef.current = setInterval(() => {
+      if (!scheduledRef.current && notificationSettings.enabled) {
         scheduleNotification()
       }
     }, 60 * 60 * 1000) // Every hour
@@ -101,11 +139,15 @@ export function useNotifications() {
     return () => {
       if (intervalRef.current) {
         clearTimeout(intervalRef.current)
+        intervalRef.current = null
       }
-      clearInterval(hourlyCheck)
+      if (hourlyCheckRef.current) {
+        clearInterval(hourlyCheckRef.current)
+        hourlyCheckRef.current = null
+      }
       scheduledRef.current = false
     }
-  }, [])
+  }, [settings?.enabled, settings?.time])
 
   return {
     requestPermission: async (): Promise<NotificationPermissionState> => {

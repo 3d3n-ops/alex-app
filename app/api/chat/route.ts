@@ -71,9 +71,10 @@ export async function POST(req: Request) {
 			lastAssistantToolCalls = []
 			
 			// Extract tool call IDs from tool_calls array
+			// OpenRouter uses 'id' field, ensure we use the exact ID from the tool call
 			if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
 				for (const call of msg.tool_calls) {
-					const callId = call?.id || call?.call_id || call?.tool_use_id
+					const callId = call?.id // OpenRouter format uses 'id'
 					if (callId) {
 						lastAssistantToolCalls.push(callId)
 					}
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
 			})
 		} else if (msg.role === 'tool') {
 			// Only include tool messages if they have a valid tool_call_id that matches the previous assistant's tool_use
-			const toolCallId = msg.tool_call_id || msg.tool_use_id
+			const toolCallId = msg.tool_call_id
 			if (toolCallId && lastAssistantToolCalls.includes(toolCallId)) {
 				cleanedMessages.push({
 					role: 'tool',
@@ -242,16 +243,27 @@ export async function POST(req: Request) {
       for (const call of editorToolCalls) {
         const name: string | undefined = call?.function?.name || call?.name
         const argsRaw: string | object | undefined = call?.function?.arguments || call?.arguments
-        const callId: string | undefined = call?.id || call?.call_id
+        // OpenRouter uses 'id' field, Anthropic uses 'id' - ensure we get the exact ID from the tool call
+        const callId: string | undefined = call?.id
+        if (!callId) {
+          console.error(`[Chat API] Editor tool call missing ID:`, { call, name })
+        }
         const spec = name ? editorRegistry[name] : undefined
         
         if (!name || !spec) {
           console.warn(`[Chat API] Editor tool not found: ${name || 'unknown'}`)
-          turnMessages.push({ 
-            role: 'tool', 
-            content: `Tool not found: ${name || 'unknown'}`,
-            tool_call_id: callId || 'unknown'
-          })
+          if (callId) {
+            turnMessages.push({ 
+              role: 'tool', 
+              content: `Tool not found: ${name || 'unknown'}`,
+              tool_call_id: callId
+            })
+          }
+          continue
+        }
+        
+        if (!callId) {
+          console.error(`[Chat API] Cannot execute editor tool without call ID:`, { name, call })
           continue
         }
         
@@ -264,7 +276,7 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: `Invalid args for ${name}: ${String(e?.message || e)}`,
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
           continue
         }
@@ -275,7 +287,7 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: JSON.stringify(out),
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
         } catch (e: any) {
           const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
@@ -283,38 +295,50 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: errorMsg,
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
         }
       }
       
-      // If there are UI tool calls, collect them as intents and finalize
+      // IMPORTANT: Push assistant message BEFORE executing tools to ensure tool_use_ids match
+      // The assistant message with tool_calls must be in turnMessages before we push tool results
+      // This ensures that tool results reference IDs that exist in the immediately preceding assistant message
+      turnMessages.push({ role: 'assistant', content: assistantContent || '', tool_calls: toolCalls })
+      
+      // If there are UI tool calls, collect them as intents
       if (uiToolCalls.length > 0) {
         finalUIIntents = uiToolCalls.map((c: any) => ({
           name: c?.function?.name || c?.name,
           args: (() => { try { return JSON.parse(c?.function?.arguments || c?.arguments || '{}') } catch { return {} } })()
         }))
-        // Still execute any server tools that were called in the same turn
-        turnMessages.push({ role: 'assistant', content: assistantContent || '', tool_calls: toolCalls })
-      } else {
-        // Only server tools - continue ReAct loop
-        turnMessages.push({ role: 'assistant', content: assistantContent || '', tool_calls: toolCalls })
       }
       
       // Execute server tools automatically (ReAct: Observe after Action)
+      
       for (const call of serverToolCalls) {
         const name: string | undefined = call?.function?.name || call?.name
         const argsRaw: string | object | undefined = call?.function?.arguments || call?.arguments
-        const callId: string | undefined = call?.id || call?.call_id
+        // OpenRouter uses 'id' field - ensure we get the exact ID from the tool call
+        const callId: string | undefined = call?.id
+        if (!callId) {
+          console.error(`[Chat API] Server tool call missing ID:`, { call, name })
+        }
         const spec = name ? serverRegistry[name] : undefined
         
         if (!name || !spec) {
           console.warn(`[Chat API] Tool not found: ${name || 'unknown'}`)
-          turnMessages.push({ 
-            role: 'tool', 
-            content: `Tool not found: ${name || 'unknown'}`,
-            tool_call_id: callId || 'unknown'
-          })
+          if (callId) {
+            turnMessages.push({ 
+              role: 'tool', 
+              content: `Tool not found: ${name || 'unknown'}`,
+              tool_call_id: callId
+            })
+          }
+          continue
+        }
+        
+        if (!callId) {
+          console.error(`[Chat API] Cannot execute server tool without call ID:`, { name, call })
           continue
         }
         
@@ -327,7 +351,7 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: `Invalid args for ${name}: ${String(e?.message || e)}`,
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
           continue
         }
@@ -338,7 +362,7 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: JSON.stringify(out),
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
         } catch (e: any) {
           const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
@@ -346,7 +370,7 @@ export async function POST(req: Request) {
           turnMessages.push({ 
             role: 'tool', 
             content: errorMsg,
-            tool_call_id: callId || 'unknown'
+            tool_call_id: callId
           })
         }
       }
@@ -457,17 +481,23 @@ export async function POST(req: Request) {
     }
 
     // Execute tool calls and append tool results
+    // IMPORTANT: Push assistant message BEFORE executing tools to ensure tool_use_ids match
     turnMessages.push({ role: 'assistant', content: assistantContent || '', tool_calls: toolCalls })
     for (const call of toolCalls) {
       const name: string | undefined = call?.function?.name || call?.name
       const argsRaw: string | object | undefined = call?.function?.arguments || call?.arguments
-      const callId: string | undefined = call?.id || call?.call_id
+      // OpenRouter uses 'id' field - ensure we get the exact ID from the tool call
+      const callId: string | undefined = call?.id
+      if (!callId) {
+        console.error(`[Chat API] Tool call missing ID:`, { call, name })
+        continue
+      }
       const spec = name ? registry[name] : undefined
       if (!name || !spec) {
         turnMessages.push({ 
           role: 'tool', 
           content: `Tool not found: ${name || 'unknown'}`,
-          tool_call_id: callId || 'unknown'
+          tool_call_id: callId
         })
         continue
       }
@@ -479,7 +509,7 @@ export async function POST(req: Request) {
         turnMessages.push({ 
           role: 'tool', 
           content: `Invalid args for ${name}: ${String(e?.message || e)}`,
-          tool_call_id: callId || 'unknown'
+          tool_call_id: callId
         })
         continue
       }
@@ -488,7 +518,7 @@ export async function POST(req: Request) {
         turnMessages.push({ 
           role: 'tool', 
           content: JSON.stringify(out),
-          tool_call_id: callId || 'unknown'
+          tool_call_id: callId
         })
       } catch (e: any) {
         const errorMsg = `Error executing ${name}: ${String(e?.message || e)}`
@@ -496,7 +526,7 @@ export async function POST(req: Request) {
         turnMessages.push({ 
           role: 'tool', 
           content: errorMsg,
-          tool_call_id: callId || 'unknown'
+          tool_call_id: callId
         })
       }
     }

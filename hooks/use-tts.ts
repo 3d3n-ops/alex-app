@@ -17,13 +17,22 @@ export function useTTS(options: TTSOptions = {}) {
   // TTS enabled by default for Alex
   const [isEnabled, setIsEnabled] = useState(true)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const inFlightRequestsRef = useRef<Set<AbortController>>(new Set())
 
   const speak = useCallback(async (text: string, immediate = false) => {
     if (!isEnabled || !text?.trim()) return
 
-    // Cancel any ongoing TTS requests
-    abortControllerRef.current?.abort()
-    abortControllerRef.current = new AbortController()
+    // Only cancel ongoing requests if we want to interrupt immediately
+    if (immediate) {
+      abortControllerRef.current?.abort()
+      // Cancel all in-flight requests
+      inFlightRequestsRef.current.forEach(controller => controller.abort())
+      inFlightRequestsRef.current.clear()
+    }
+
+    // Create a new abort controller for this specific request
+    const requestAbortController = new AbortController()
+    inFlightRequestsRef.current.add(requestAbortController)
 
     try {
       const response = await fetch('/api/tts', {
@@ -35,15 +44,19 @@ export function useTTS(options: TTSOptions = {}) {
           speed: options.speed || 1.0,
           model: options.model || 'tts-1',
         }),
-        signal: abortControllerRef.current.signal,
+        signal: requestAbortController.signal,
       })
 
       if (!response.ok) {
         console.error('TTS request failed:', response.status)
+        inFlightRequestsRef.current.delete(requestAbortController)
         return
       }
 
       const audioBlob = await response.blob()
+      // Remove from in-flight set once we have the blob
+      inFlightRequestsRef.current.delete(requestAbortController)
+      
       const audioUrl = URL.createObjectURL(audioBlob)
       const audio = new Audio(audioUrl)
 
@@ -77,6 +90,9 @@ export function useTTS(options: TTSOptions = {}) {
         playNext()
       }
     } catch (error: any) {
+      // Remove from in-flight set on error
+      inFlightRequestsRef.current.delete(requestAbortController)
+      
       if (error.name === 'AbortError') {
         // Request was cancelled, ignore
         return
@@ -107,7 +123,12 @@ export function useTTS(options: TTSOptions = {}) {
   }, [])
 
   const stop = useCallback(() => {
+    // Cancel all in-flight requests
     abortControllerRef.current?.abort()
+    inFlightRequestsRef.current.forEach(controller => controller.abort())
+    inFlightRequestsRef.current.clear()
+    
+    // Stop all queued audio
     audioQueueRef.current.forEach(a => {
       a.pause()
       a.currentTime = 0

@@ -150,6 +150,7 @@ export interface CodeEditorHandle {
   getCode: () => string
   insertCode: (code: string, position?: { line: number; column: number }) => void
   createFile: (name: string, language: string, content?: string) => Promise<void>
+  editFile: (path: string, content: string) => Promise<void>
   runCode: () => Promise<void>
   openTerminal: () => void
   writeToTerminal: (text: string) => void
@@ -436,6 +437,10 @@ ${htmlDoc}
           console.error('Cannot create file: threadId is required')
           return
         }
+        if (!content || content.trim().length === 0) {
+          console.error('Cannot create file: content is required and cannot be empty')
+          return
+        }
         const newFile: FileItem = {
           threadId, // Thread-scoped
           name,
@@ -455,6 +460,68 @@ ${htmlDoc}
         setSelectedFileId(Number(id))
         setCode(content)
         setLanguage(fileLanguage)
+      },
+      editFile: async (path: string, content: string) => {
+        if (!threadId) {
+          console.error('Cannot edit file: threadId is required')
+          return
+        }
+        if (!content || content.trim().length === 0) {
+          console.error('Cannot edit file: content is required and cannot be empty')
+          return
+        }
+        // Normalize path (remove leading slash)
+        const normalizedPath = path.replace(/^\/+/, '')
+        
+        // Find the file by path
+        const files = await db.files
+          .where('[threadId+path]')
+          .equals([threadId, `/${normalizedPath}`])
+          .toArray()
+        
+        if (files.length === 0) {
+          // Try finding by name
+          const allThreadFiles = await db.files
+            .where('threadId')
+            .equals(threadId)
+            .filter(f => !f.isFolder && (f.name === normalizedPath || f.path.endsWith(`/${normalizedPath}`)))
+            .toArray()
+          
+          if (allThreadFiles.length > 0) {
+            const file = allThreadFiles[0]
+            await db.files.update(file.id!, {
+              content,
+              updatedAt: Date.now(),
+            })
+            const updatedFiles = await db.files
+              .where('threadId')
+              .equals(threadId)
+              .toArray()
+            setFiles(updatedFiles)
+            // If this file is currently selected, update the editor
+            if (selectedFileId === file.id) {
+              setCode(content)
+            }
+            return
+          }
+          console.error(`File not found: ${path}`)
+          return
+        }
+        
+        const file = files[0]
+        await db.files.update(file.id!, {
+          content,
+          updatedAt: Date.now(),
+        })
+        const updatedFiles = await db.files
+          .where('threadId')
+          .equals(threadId)
+          .toArray()
+        setFiles(updatedFiles)
+        // If this file is currently selected, update the editor
+        if (selectedFileId === file.id) {
+          setCode(content)
+        }
       },
       runCode: async () => {
         await executeCode()

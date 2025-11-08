@@ -83,7 +83,7 @@ export default function GeneralSettings({ profile, onProfileUpdate }: GeneralSet
   const removeLanguage = (lang: string) => {
     setFormData({
       ...formData,
-      languages: formData.languages.filter(l => l !== lang)
+      languages: formData.languages.filter((l: string) => l !== lang)
     })
   }
 
@@ -158,7 +158,7 @@ export default function GeneralSettings({ profile, onProfileUpdate }: GeneralSet
           </div>
           {formData.languages.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {formData.languages.map((lang) => (
+              {formData.languages.map((lang: string) => (
                 <div
                   key={lang}
                   className="inline-flex items-center gap-2 bg-[#C9B59A] text-[#161210] font-mono font-bold px-3 py-1 rounded-full text-sm"
@@ -179,7 +179,7 @@ export default function GeneralSettings({ profile, onProfileUpdate }: GeneralSet
         {/* Preferences */}
         <div className="space-y-2">
           <Label htmlFor="preferences" className="font-mono text-white">
-            What personal preferences should Claude consider in responses?
+            What personal preferences should Alex consider in responses?
           </Label>
           <Textarea
             id="preferences"
@@ -202,7 +202,7 @@ export default function GeneralSettings({ profile, onProfileUpdate }: GeneralSet
           <div className="space-y-1">
             <Label className="font-mono text-white">Daily learning reminders</Label>
             <p className="text-white/60 font-mono text-sm">
-              Get notified daily to continue your learning streak. Notifications are sent at 9:00 AM.
+              Get notified daily to continue your learning streak. We'll send you personalized reminders to help you maintain your progress.
             </p>
           </div>
           <Switch
@@ -223,10 +223,9 @@ export default function GeneralSettings({ profile, onProfileUpdate }: GeneralSet
               value={formData.notificationTime}
               onChange={(e) => setFormData({ ...formData, notificationTime: e.target.value })}
               className="w-32 bg-[#2A2622] border-white/10 text-white font-mono"
-              disabled // For now, as mentioned - will be configurable later
             />
             <p className="text-white/40 font-mono text-xs">
-              Currently fixed at 9:00 AM. Customizable schedule coming soon.
+              Choose when you'd like to receive daily learning reminders to maintain your streak.
             </p>
           </div>
         )}

@@ -17,7 +17,13 @@
     "test:stress:code": "npx tsx tests/stress-test-suite.ts --scenarios=codeHeavy",
     "test:stress:questions": "npx tsx tests/stress-test-suite.ts --scenarios=questionHeavy",
     "test:stress:tools": "npx tsx tests/stress-test-suite.ts --scenarios=toolHeavy",
-    "test:stress:all": "npx tsx tests/stress-test-suite.ts --scenarios=mixed,codeHeavy,questionHeavy,toolHeavy"
+    "test:stress:all": "npx tsx tests/stress-test-suite.ts --scenarios=mixed,codeHeavy,questionHeavy,toolHeavy",
+    "eval": "npx tsx evals/run-evals.ts",
+    "eval:all": "npx tsx evals/run-evals.ts all",
+    "eval:basic": "npx tsx evals/run-evals.ts basic",
+    "eval:toolUseId": "npx tsx evals/run-evals.ts toolUseId",
+    "eval:errors": "npx tsx evals/run-evals.ts errorHandling",
+    "eval:efficiency": "npx tsx evals/run-evals.ts efficiency"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.39",

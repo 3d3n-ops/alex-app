@@ -37,9 +37,31 @@ export default function DashboardClient({ firstName }: DashboardClientProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [chatThreads, setChatThreads] = useState<ChatThreadRow[]>([])
+  const [notificationSettings, setNotificationSettings] = useState<{ enabled: boolean; time: string } | undefined>(undefined)
   
-  // Initialize notifications
-  useNotifications()
+  // Load notification settings from profile
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      try {
+        const response = await fetch('/api/user/profile')
+        if (response.ok) {
+          const profile = await response.json()
+          setNotificationSettings({
+            enabled: profile.notificationsEnabled !== false, // Default to true
+            time: profile.notificationTime || '09:00'
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load notification settings:', error)
+        // Default settings if fetch fails
+        setNotificationSettings({ enabled: true, time: '09:00' })
+      }
+    }
+    loadNotificationSettings()
+  }, [])
+  
+  // Initialize notifications with user settings
+  useNotifications(notificationSettings)
 
   // Load chat threads on mount and when sidebar opens
   useEffect(() => {

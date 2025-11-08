@@ -156,45 +156,10 @@ export function buildTools(threadId?: string): ToolRegistry {
 	return {
 		todos: {
 			name: 'todos',
-			description: 'Create, update, or manage a list of todo items. Use this to layout action plans and track progress through multi-step tasks. Each todo has an id, content, and status (pending, in_progress, completed, cancelled). Use merge=true to update existing todos or add new ones. Use merge=false to replace all todos.',
+			description: 'Create or update a todo list to track multi-step tasks. ONLY use this AFTER asking the user clarifying questions to understand their goals. Once created, work through todos recursively one by one until all are completed. Each todo has an id, content, and status (pending, in_progress, completed, cancelled). Use merge=true to update existing todos. Use merge=false ONLY when creating the initial todo list after understanding user goals. CRITICAL: Before creating a new todo list, check if there are existing incomplete todos - if so, complete those first.',
 			jsonSchema: todosJsonSchema,
 			zodSchema: todosSchema,
 			execute: wrapWithLogging('todos', todosSchema, (args) => todos(args, threadId)),
-		},
-		globFile: {
-			name: 'globFile',
-			description: 'List files matching a glob pattern relative to repo root',
-			jsonSchema: globFileJsonSchema,
-			zodSchema: globFileSchema,
-			execute: wrapWithLogging('globFile', globFileSchema, globFile),
-		},
-		grepFile: {
-			name: 'grepFile',
-			description: 'Search files for a string/regex, optionally scoped to a path',
-			jsonSchema: grepFileJsonSchema,
-			zodSchema: grepFileSchema,
-			execute: wrapWithLogging('grepFile', grepFileSchema, grepFile),
-		},
-		readFile: {
-			name: 'readFile',
-			description: 'Read the contents of a file from the workspace. Returns file content, size, and line count. If file is not found, provides suggestions for similar files.',
-			jsonSchema: readFileJsonSchema,
-			zodSchema: readFileSchema,
-			execute: wrapWithLogging('readFile', readFileSchema, (args) => readFile(args, threadId)),
-		},
-		listFiles: {
-			name: 'listFiles',
-			description: 'List all files in the workspace directory. Use this to see what files are available before reading them. Can list files in a specific directory or recursively scan the entire workspace.',
-			jsonSchema: listFilesJsonSchema,
-			zodSchema: listFilesSchema,
-			execute: wrapWithLogging('listFiles', listFilesSchema, (args) => listFiles(args, threadId)),
-		},
-		writeFile: {
-			name: 'writeFile',
-			description: 'Write content to a file in the workspace filesystem. This creates or overwrites a file that can then be read with readFile. Use this instead of editor.createFile if you need the file to be accessible via readFile.',
-			jsonSchema: writeFileJsonSchema,
-			zodSchema: writeFileSchema,
-			execute: wrapWithLogging('writeFile', writeFileSchema, (args) => writeFile(args, threadId)),
 		},
 	}
 }
@@ -244,7 +209,7 @@ export function buildEditorTools(threadId?: string): ToolRegistry {
 	return {
 		editor_readFile: {
 			name: 'editor_readFile',
-			description: 'Read a file from the editor (thread-scoped CodeEditorDB). This is the PRIMARY way to read files created with editor_createFile. Files are scoped per chat thread.',
+			description: 'Read a file from the editor (thread-scoped CodeEditorDB). Use this to read files that were created with editor_createFile. Files are scoped per chat thread. Use this when you need to see the current content of a file before editing it.',
 			jsonSchema: {
 				type: 'object',
 				properties: {
@@ -257,7 +222,7 @@ export function buildEditorTools(threadId?: string): ToolRegistry {
 		},
 		editor_listFiles: {
 			name: 'editor_listFiles',
-			description: 'List all files in the editor (thread-scoped CodeEditorDB). Use this to see what files exist in the current chat thread before reading them. Files are scoped per chat thread.',
+			description: 'Search for and list files in the editor (thread-scoped CodeEditorDB). Use this to see what code files exist in the current chat thread. This is the PRIMARY tool for finding files. Use this before reading or editing files to see what\'s available.',
 			jsonSchema: {
 				type: 'object',
 				properties: {
@@ -278,49 +243,67 @@ export function buildClientUITools(): ORTool[] {
 		{
 			type: 'function',
 			function: {
-				name: 'editor_setCode',
-				description: 'Replace the entire editor content with optional language',
+				name: 'editor_createFile',
+				description: 'Create a new code file in the editor. This is the PRIMARY tool for writing new files. Files are automatically scoped to the current chat thread. CRITICAL: Always provide complete, runnable code with proper syntax. Never create empty files or files with just a filename - always include meaningful code content. Use this when the user asks you to create a new file or when you need to demonstrate code examples.',
 				parameters: {
 					type: 'object',
 					properties: {
-						code: { type: 'string' },
-						language: { type: 'string' }
-					},
-					required: ['code']
-				}
-			}
-		},
-		{
-			type: 'function',
-			function: {
-				name: 'editor_insertCode',
-				description: 'Insert code at the current cursor or specified position',
-				parameters: {
-					type: 'object',
-					properties: {
-						code: { type: 'string' },
-						position: {
-							type: 'object',
-							properties: { line: { type: 'integer' }, column: { type: 'integer' } }
+						name: { 
+							type: 'string', 
+							description: 'File name with extension (e.g., "hello.py", "main.js", "app.tsx"). Must be a code file, not a plain text file.' 
+						},
+						language: { 
+							type: 'string', 
+							description: 'Programming language (e.g., "python", "javascript", "typescript", "java", "cpp")' 
+						},
+						content: { 
+							type: 'string', 
+							description: 'REQUIRED: Complete file content with proper syntax. Never leave this empty. Always write meaningful, runnable code.' 
 						}
 					},
-					required: ['code']
+					required: ['name', 'language', 'content']
 				}
 			}
 		},
 		{
 			type: 'function',
 			function: {
-				name: 'editor_createFile',
-				description: 'Create a new file in the editor (thread-scoped CodeEditorDB). This is the PRIMARY tool for creating code files. Files are automatically scoped to the current chat thread. Write complete, runnable code with proper syntax.',
+				name: 'editor_editFile',
+				description: 'Edit an existing file in the editor. Use this to modify code in files that were created with editor_createFile. First use editor_readFile to see the current content, then use this tool to update it. Provide the complete updated file content.',
 				parameters: {
 					type: 'object',
 					properties: {
-						name: { type: 'string', description: 'File name (e.g., "hello.py", "main.js")' },
-						language: { type: 'string', description: 'Programming language (e.g., "python", "javascript")' },
-						content: { type: 'string', description: 'Complete file content with proper syntax' }
+						path: { 
+							type: 'string', 
+							description: 'Path to the file to edit (e.g., "/hello.py" or "hello.py"). Must be a file that exists in the editor.' 
+						},
+						content: { 
+							type: 'string', 
+							description: 'REQUIRED: Complete updated file content. Replace the entire file with the new content.' 
+						}
 					},
-					required: ['name', 'language']
+					required: ['path', 'content']
+				}
+			}
+		},
+		{
+			type: 'function',
+			function: {
+				name: 'editor_listFiles',
+				description: 'Search for files in the editor. Use this to find what code files exist before reading or editing them. This is the PRIMARY tool for discovering files in the current chat thread.',
+				parameters: {
+					type: 'object',
+					properties: {
+						directory: { 
+							type: 'string', 
+							description: 'Optional directory to search (defaults to root "/")' 
+						},
+						recursive: { 
+							type: 'boolean', 
+							description: 'Whether to recursively search subdirectories', 
+							default: false 
+						}
+					}
 				}
 			}
 		},
@@ -328,7 +311,7 @@ export function buildClientUITools(): ORTool[] {
 			type: 'function',
 			function: {
 				name: 'editor_spotlight',
-				description: 'Highlight specific lines of code in the editor with a visual halo effect and play a sound. Use this when you want to draw the student\'s attention to specific code for teaching or correction purposes.',
+				description: 'Highlight specific lines of code in the editor with a visual effect and sound. Use this to draw attention to important code for teaching, pointing out errors, or explaining concepts. Use after explaining code or when you want to focus the student\'s attention on specific lines.',
 				parameters: {
 					type: 'object',
 					properties: {

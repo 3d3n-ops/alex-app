@@ -76,9 +76,19 @@ export default function Home() {
             Start building
           </Button>
 
-          {/* Placeholder Demo Area */}
+          {/* Demo Video */}
           <div className="mx-auto max-w-3xl">
-            <div className="bg-accent rounded-2xl aspect-video w-full" />
+            <video
+              className="rounded-2xl aspect-video w-full object-cover shadow-2xl"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+            >
+              <source src="/alex-demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
         </div>
       </section>
